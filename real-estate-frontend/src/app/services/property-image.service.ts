@@ -12,7 +12,7 @@ export interface PropertyImageDto {
   providedIn: 'root'
 })
 export class PropertyImageService {
-  private baseUrl = environment.apiUrl + '/property-images';
+  private baseUrl = environment.apiUrl + '/images';
 
   constructor(private http: HttpClient) {}
 
@@ -27,9 +27,10 @@ export class PropertyImageService {
   }
 
   // Delete image by id
-  deleteImage(imageId: number): Observable<void> {
-    return this.http.delete<void>(`${environment.apiUrl.replace('/api', '')}/images/${imageId}`);
-  }
+ deleteImage(imageId: number): Observable<void> {
+  return this.http.delete<void>(`${this.baseUrl}/${imageId}`);
+}
+
 
   // Get single image by id
   getImageById(imageId: number): Observable<PropertyImageDto> {
