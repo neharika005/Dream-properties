@@ -145,7 +145,7 @@ export class PropertyDetailsComponent implements OnInit, AfterViewInit {
       agentName: this.agent?.name,
       date: new Date(),
       id: 0,
-      status: ''
+      
     };
 
     this.inquiryService.sendInquiry(inquiry).subscribe({
@@ -165,9 +165,12 @@ export class PropertyDetailsComponent implements OnInit, AfterViewInit {
     return this.agent.name.split(' ').map(n => n[0]).join('').toUpperCase();
   }
 
-  onImgError(event: Event) {
-    (event.target as HTMLImageElement).src = 'assets/placeholder.jpg';
-  }
+ onImgError(event: Event) {
+  const img = event.target as HTMLImageElement;
+  img.onerror = null; // prevent infinite loop
+  img.src = '/assets/placeholder.jpg';
+}
+
 
   canDeleteImage(imageId?: number): boolean {
     const agentId = this.property?.agentId;
