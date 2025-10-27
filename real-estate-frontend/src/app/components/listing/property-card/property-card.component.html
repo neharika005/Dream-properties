@@ -1,0 +1,43 @@
+<div class="property-card" (click)="onViewDetails()">
+  <div class="card-image-container">
+    <img
+      [src]="getFirstImageUrl()"
+      [alt]="property.title"
+      class="card-image"
+      (error)="onImgError($event)"
+    />
+  <button
+  class="btn-favorite"
+  (click)="onToggleSave(); $event.stopPropagation()"
+  [class.saved]="isSaved"
+  aria-label="Toggle favorite"
+>
+  <svg *ngIf="!isSaved" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#aeaeae" stroke-width="2">
+    <path d="M12 21C12 21 7.5 16.6 4.5 13.28C2.67 11.22 2.67 8.09 4.5 6.03C6.33 3.97 9.46 4.1 11.25 6.17L12 7.09L12.75 6.17C14.54 4.1 17.67 3.97 19.5 6.03C21.33 8.09 21.33 11.22 19.5 13.28C16.5 16.6 12 21 12 21Z" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+  <svg *ngIf="isSaved" viewBox="0 0 24 24" width="24" height="24" fill="#ef476f" stroke="#ef476f" stroke-width="2">
+    <path d="M12 21C12 21 7.5 16.6 4.5 13.28C2.67 11.22 2.67 8.09 4.5 6.03C6.33 3.97 9.46 4.1 11.25 6.17L12 7.09L12.75 6.17C14.54 4.1 17.67 3.97 19.5 6.03C21.33 8.09 21.33 11.22 19.5 13.28C16.5 16.6 12 21 12 21Z" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+</button>
+
+  </div>
+
+  <div class="card-content">
+    <h3 class="card-title">{{ property.title }}</h3>
+    <p class="card-price">${{ property.price | number }}</p>
+
+    <div class="card-location">
+      <!-- SVG ... -->
+      <span>{{ property.address || property.area || 'Location not specified' }}</span>
+    </div>
+
+    <div class="card-features" *ngIf="property.area">
+      <!-- SVG ... -->
+      <span>{{ property.area }}</span>
+    </div>
+
+    <button class="btn-view-details" (click)="onViewDetails(); $event.stopPropagation()">
+      View Details
+    </button>
+  </div>
+</div>

@@ -1,0 +1,17 @@
+<div *ngIf="!isLoading && favorites.length; else noFavs">
+  <div *ngFor="let property of favorites" class="property-card">
+    <!-- Ensure images exist before accessing -->
+    <img *ngIf="property.images && property.images.length > 0" 
+         [src]="property.images[0].imageUrl" 
+         [alt]="property.title" />
+
+    <h3>{{ property.title }}</h3>
+    <p>Price: {{ property.price | number }}</p>
+    <p>Area: {{ property.area }}</p>
+    <p>Address: {{ property.address }}</p>
+  </div>
+</div>
+
+<ng-template #noFavs>
+  <p>You have no favorite properties yet.</p>
+</ng-template>

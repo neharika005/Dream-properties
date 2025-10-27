@@ -1,0 +1,13 @@
+<div *ngIf="isLoading">Loading inquiries...</div>
+
+<div *ngIf="!isLoading && inquiries.length; else noInq">
+  <div *ngFor="let inq of inquiries" class="inquiry-card p-4 mb-4 border rounded shadow-sm">
+    <h4 class="font-semibold mb-1">Property: {{ inq.title || 'Unknown Property' }}</h4>
+    <p class="mb-1"><strong>Message:</strong> {{ inq.message }}</p>
+    <p class="text-sm text-muted"><strong>Date:</strong> {{ inq.date ? (inq.date | date:'mediumDate') : 'N/A' }}</p>
+  </div>
+</div>
+
+<ng-template #noInq>
+  <p>You have not sent any inquiries yet.</p>
+</ng-template>

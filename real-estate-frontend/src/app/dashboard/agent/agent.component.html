@@ -1,0 +1,114 @@
+<div class="agent-dashboard-page">
+  <div class="container">
+    <div class="dashboard-header">
+      <div>
+        <h1 class="dashboard-title">Agent Dashboard</h1>
+        <p class="dashboard-subtitle">Manage your listings and inquiries</p>
+      </div>
+      <button class="btn-primary" (click)="addNewProperty()">
+        Add New Property
+      </button>
+    </div>
+
+    <div class="tabs-container">
+      <div class="tabs-nav">
+        <button 
+          class="tab-button"
+          [class.active]="activeTab === 'listings'"
+          (click)="activeTab = 'listings'">
+          My Listings ({{ myListings.length }})
+        </button>
+        <button 
+          class="tab-button"
+          [class.active]="activeTab === 'inquiries'"
+          (click)="activeTab = 'inquiries'">
+          Inquiries ({{ inquiries.length }})
+        </button>
+      </div>
+
+      <div class="tabs-content">
+        <!-- My Listings Tab -->
+        <div class="tab-panel" *ngIf="activeTab === 'listings'">
+          <div class="property-grid" *ngIf="!isLoadingListings && myListings.length > 0">
+            <div *ngFor="let property of myListings" class="agent-property-card">
+              <div class="card-image-container">
+                <img 
+                  [src]="getFirstImageUrl(property)" 
+                  [alt]="property.title" 
+                  class="card-image"
+                  (error)="onImgError($event)">
+                <div class="card-actions">
+                  <button class="btn-icon" (click)="editProperty(property.id)" title="Edit">✏️</button>
+                  <button class="btn-icon btn-icon-danger" (click)="deleteProperty(property.id)" title="Delete">🗑️</button>
+                </div>
+              </div>
+              <div class="card-content">
+                <h3 class="card-title">{{ property.title }}</h3>
+                <p class="card-price">${{ property.price | number }}</p>
+                <p class="card-location">{{ property.address || property.area }}</p>
+                <button class="btn-view-details" (click)="viewDetails(property.id)">View Details</button>
+              </div>
+            </div>
+          </div>
+          <div class="empty-state" *ngIf="!isLoadingListings && myListings.length === 0">
+            <p>No properties found.</p>
+            <button class="btn-primary" (click)="addNewProperty()">Add Property</button>
+          </div>
+        </div>
+
+        <!-- Inquiries Tab -->
+        <div class="tab-panel" *ngIf="activeTab === 'inquiries'">
+          <div class="inquiries-table-container" *ngIf="!isLoadingInquiries && inquiries.length > 0">
+            <table class="inquiries-table">
+              <thead>
+                <tr>
+                  <th>Property</th>
+                  <th>Buyer</th>
+                  <th>Date</th>
+                  <th>Status</th>
+                  <th>Message</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let inquiry of inquiries">
+                  <td class="property-name">{{ inquiry.propertyTitle || ('Property #' + inquiry.propertyId) }}</td>
+                  <td>
+                    <div class="buyer-info">
+                      <strong>{{ inquiry.name }}</strong>
+                      <div class="buyer-email">{{ inquiry.email }}</div>
+                    </div>
+                  </td>
+                  <td>
+                    <!-- Only show if createdAt exists, else blank -->
+                    {{ inquiry.createdAt ? (inquiry.createdAt | date:'MMM dd, yyyy') : '' }}
+                  </td>
+                  <td>
+                    <span class="status-badge" [ngClass]="getStatusClass(inquiry.status)">
+                      {{ inquiry.status || 'PENDING' }}
+                    </span>
+                  </td>
+                  <td class="message-cell">{{ inquiry.message }}</td>
+                  <td>
+                    <button 
+                      *ngIf="(inquiry.status === 'PENDING' || inquiry.status === 'Pending') && inquiry.id != null" 
+                      class="btn-action"
+                      (click)="markAsResponded(inquiry.id)">
+                      Mark as Responded
+                    </button>
+                    <span *ngIf="inquiry.status !== 'PENDING' && inquiry.status !== 'Pending'">
+                      {{ inquiry.status }}
+                    </span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="empty-state" *ngIf="!isLoadingInquiries && inquiries.length === 0">
+            <p>No inquiries found.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

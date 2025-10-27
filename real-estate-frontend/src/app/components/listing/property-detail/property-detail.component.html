@@ -1,0 +1,170 @@
+<ng-template #loading>
+  <div class="loading-container">
+    <div class="loading-spinner"></div>
+    <p class="loading-text">Loading property details...</p>
+  </div>
+</ng-template>
+
+<div class="min-h-screen bg-background" *ngIf="property; else loading">
+  <div class="container mx-auto px-4 py-8">
+    <button (click)="goBack()" class="btn-back mb-6">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M19 12H5M12 19l-7-7 7-7"/>
+      </svg>
+      Back to listings
+    </button>
+    <div class="property-layout">
+      <div class="main-content">
+        <div class="card">
+          <div class="card-body">
+            <div class="property-header">
+              <div class="property-info">
+                <h1 class="property-title">{{ property.title }}</h1>
+                <p class="property-location">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                    <circle cx="12" cy="10" r="3"/>
+                  </svg>
+                  {{ property.address || property.area }}
+                </p>
+              </div>
+              <button (click)="onToggleSave()" class="btn-favorite" [class.saved]="isSaved">
+                <svg *ngIf="!isSaved" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                </svg>
+                <svg *ngIf="isSaved" width="24" height="24" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2">
+                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+                </svg>
+              </button>
+            </div>
+            <p class="property-price">${{ property.price | number }}</p>
+            <div class="property-features" *ngIf="property.area">
+              <div class="feature">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                </svg>
+                <span>{{ property.area }} sqft</span>
+              </div>
+            </div>
+            <div class="property-gallery" *ngIf="galleryImages?.length">
+              <h3 class="section-title">Gallery</h3>
+              <div class="gallery-grid-custom">
+                <div class="gallery-main-img" *ngIf="galleryImages[0]">
+                  <img [src]="galleryImages[0].url" alt="Main Property image" (error)="onImgError($event)" />
+                  <button
+                    *ngIf="canDeleteImage(galleryImages[0].id)"
+                    class="btn-delete-image"
+                    (click)="deleteImage(galleryImages[0].id)"
+                    title="Delete Image"
+                  >&#10006;</button>
+                </div>
+                <ng-container *ngFor="let img of galleryImages.slice(1)">
+                  <div class="gallery-thumb-img">
+                    <img [src]="img.url" alt="Property thumbnail" (error)="onImgError($event)" />
+                    <button
+                      *ngIf="canDeleteImage(img.id)"
+                      class="btn-delete-image"
+                      (click)="deleteImage(img.id)"
+                      title="Delete Image"
+                    >&#10006;</button>
+                  </div>
+                </ng-container>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-body">
+                <h3 class="section-title mb-4">Location</h3>
+                <div class="map-wrapper" *ngIf="property?.latitude && property?.longitude; else mapPlaceholder">
+                  <div #mapContainer class="map-container"></div>
+                  <div class="map-address">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                      <circle cx="12" cy="10" r="3"/>
+                    </svg>
+                    <span>{{ property.address || property.area }}</span>
+                  </div>
+                </div>
+                <ng-template #mapPlaceholder>
+                  <div class="map-placeholder">
+                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                      <circle cx="12" cy="10" r="3"/>
+                    </svg>
+                    <p>Location coordinates not available</p>
+                    <p class="map-placeholder-address" *ngIf="property?.address || property?.area">
+                      {{ property.address || property.area }}
+                    </p>
+                  </div>
+                </ng-template>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <aside class="sidebar">
+        <div class="card agent-card">
+          <div class="card-body">
+            <h3 class="section-title mb-4">Contact Agent</h3>
+            <div class="agent-info">
+              <div class="agent-avatar">
+                {{ getAgentInitials() }}
+              </div>
+              <div class="agent-details">
+                <p class="agent-name">{{ agent?.name || 'Agent Name' }}</p>
+                <p class="agent-role">Real Estate Agent</p>
+              </div>
+            </div>
+            <div class="agent-contact">
+              <div class="contact-item">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                  <polyline points="22,6 12,13 2,6"/>
+                </svg>
+                <span>{{ agent?.email || 'agent@example.com' }}</span>
+              </div>
+            </div>
+            <form (ngSubmit)="onSubmit()" class="contact-form">
+              <div class="form-group">
+                <input
+                  type="text"
+                  placeholder="Your Name"
+                  [(ngModel)]="contactForm.name"
+                  name="name"
+                  class="form-control"
+                  required
+                />
+              </div>
+              <div class="form-group">
+                <input
+                  type="email"
+                  placeholder="Your Email"
+                  [(ngModel)]="contactForm.email"
+                  name="email"
+                  class="form-control"
+                  required
+                />
+              </div>
+              <div class="form-group">
+                <textarea
+                  placeholder="Message..."
+                  [(ngModel)]="contactForm.message"
+                  name="message"
+                  rows="4"
+                  class="form-control"
+                  required
+                ></textarea>
+              </div>
+              <button type="submit" class="btn btn-primary">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 8px;">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                  <polyline points="22,6 12,13 2,6"/>
+                </svg>
+                Send Message
+              </button>
+            </form>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+</div>

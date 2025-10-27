@@ -1,0 +1,111 @@
+<!-- buyer.component.html -->
+<div class="buyer-dashboard-page">
+  <div class="container">
+    <div class="dashboard-header">
+      <h1 class="dashboard-title">dashboard</h1>
+      <p class="dashboard-subtitle">Track your saved properties and contact history</p>
+    </div>
+
+    <div class="tabs-container">
+      <!-- Tab Navigation -->
+      <div class="tabs-nav">
+        <button 
+          class="tab-button" 
+          [class.active]="activeTab === 'favorites'"
+          (click)="activeTab = 'favorites'">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+          </svg>
+          Saved Properties ({{ favoritesCount }})
+        </button>
+        
+        <button 
+          class="tab-button" 
+          [class.active]="activeTab === 'inquiries'"
+          (click)="activeTab = 'inquiries'">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+          Contact History ({{ inquiriesCount }})
+        </button>
+      </div>
+
+      <!-- Tab Content -->
+      <div class="tabs-content">
+        <!-- Favorites Tab -->
+        <div class="tab-panel" *ngIf="activeTab === 'favorites'">
+          <div class="property-grid" *ngIf="!isLoadingFavorites && favorites.length > 0">
+            <app-property-card
+              *ngFor="let property of favorites"
+              [property]="property"
+              [isSaved]="true"
+              (toggleSave)="handleToggleSave($event)"
+              (viewDetails)="viewDetails($event)">
+            </app-property-card>
+          </div>
+
+          <!-- Empty State -->
+          <div class="empty-state" *ngIf="!isLoadingFavorites && favorites.length === 0">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+            </svg>
+            <h3>No saved properties yet</h3>
+            <p>Browse listings to save your favorites!</p>
+            <button class="btn-primary" (click)="goToListings()">Browse Properties</button>
+          </div>
+
+          <!-- Loading State -->
+          <div class="loading-state" *ngIf="isLoadingFavorites">
+            <div class="spinner"></div>
+            <p>Loading your favorites...</p>
+          </div>
+        </div>
+
+        <!-- Inquiries Tab -->
+        <div class="tab-panel" *ngIf="activeTab === 'inquiries'">
+          <div class="inquiries-table-container" *ngIf="!isLoadingInquiries && inquiries.length > 0">
+            <table class="inquiries-table">
+              <thead>
+                <tr>
+                  <th>Property</th>
+                  <th>Agent</th>
+                  <th>Date</th>
+                  <th>Status</th>
+                  <th>Message</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let inquiry of inquiries">
+                  <td class="property-name">{{ inquiry.propertyTitle || 'Property #' + inquiry.propertyId }}</td>
+                  <td>{{ inquiry.agentName || 'Agent' }}</td>
+                  <td>{{ inquiry.date | date:'yyyy-MM-dd' }}</td>
+                  <td>
+                    <span class="status-badge" [class]="'status-' + getStatusClass(inquiry.status)">
+                      {{ inquiry.status || 'Pending' }}
+                    </span>
+                  </td>
+                  <td class="message-cell">{{ inquiry.message }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Empty State -->
+          <div class="empty-state" *ngIf="!isLoadingInquiries && inquiries.length === 0">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+            </svg>
+            <h3>No contact history yet</h3>
+            <p>Start contacting agents to see your inquiry history</p>
+          </div>
+
+          <!-- Loading State -->
+          <div class="loading-state" *ngIf="isLoadingInquiries">
+            <div class="spinner"></div>
+            <p>Loading your inquiries...</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
