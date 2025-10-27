@@ -1,6 +1,8 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpEvent, HttpEventType } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { environment } from '../../environments/environment';
+
 
 interface UploadResponse {
   url: string;
@@ -12,14 +14,13 @@ interface UploadResponse {
   providedIn: 'root'
 })
 export class ImageUploadService {
-  private uploadUrl = 'http://localhost:8080/api/properties/upload-image';
+  private uploadUrl = environment.apiUrl + '/properties/upload-image';
 
   constructor(private http: HttpClient) {}
 
   uploadImage(file: File): Observable<UploadResponse> {
     const formData = new FormData();
     formData.append('file', file);
-
     return this.http.post<UploadResponse>(this.uploadUrl, formData);
   }
 

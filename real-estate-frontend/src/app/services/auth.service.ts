@@ -3,6 +3,8 @@ import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { Observable, BehaviorSubject, throwError } from 'rxjs';
 import { tap, catchError } from 'rxjs/operators';
+import { environment } from '../../environments/environment';
+
 
 interface DecodedToken {
   sub: string;
@@ -27,7 +29,7 @@ interface LoginResponse {
   providedIn: 'root'
 })
 export class AuthService {
-  private apiUrl = 'http://localhost:8080/api/auth';
+  private apiUrl = environment.apiUrl + '/auth';
   private tokenKey = 'authToken';
 
   private currentUserSubject = new BehaviorSubject<User | null>(this.getUserFromStorage());

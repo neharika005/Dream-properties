@@ -5,6 +5,7 @@ import { ReactiveFormsModule, FormGroup, FormBuilder, Validators } from '@angula
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { RouterModule, Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
+import { environment } from '../../../environments/environment';
 
 @Component({
   selector: 'app-signup',
@@ -35,46 +36,48 @@ export class SignupComponent implements OnInit {
 
   ngOnInit(): void {}
 
+  
   onSubmit(): void {
-    if (!this.signupForm.valid) {
-      this.snackBar.open('Please fill in all fields correctly', 'Close', {
-        duration: 3000,
-        panelClass: ['snack-error']
-      });
-      return;
-    }
-
-    this.isLoading = true;
-    this.error = '';
-
-    const roleId = this.signupForm.value.role === 'BUYER' ? 3 : 2;
-    const signupData = {
-      name: this.signupForm.value.name,
-      email: this.signupForm.value.email,
-      password: this.signupForm.value.password
-    };
-
-    this.http.post(
-      `http://localhost:8080/api/auth/signup?roleId=${roleId}`,
-      signupData,
-      { headers: { 'Content-Type': 'application/json' }, responseType: 'text' }
-    ).subscribe({
-      next: () => {
-        this.isLoading = false;
-        this.snackBar.open('Signup successful! Please login.', 'Close', {
-          duration: 3000,
-          panelClass: ['snack-success']
-        });
-        this.router.navigate(['/login']);
-      },
-      error: (err) => {
-        this.isLoading = false;
-        this.snackBar.open(
-          err?.error?.message || 'Signup failed. Email may already exist.', 
-          'Close', 
-          { duration: 3000, panelClass: ['snack-error'] }
-        );
-      }
+  if (!this.signupForm.valid) {
+    this.snackBar.open('Please fill in all fields correctly', 'Close', {
+      duration: 3000,
+      panelClass: ['snack-error']
     });
+    return;
   }
+
+  this.isLoading = true;
+  this.error = '';
+
+  const roleId = this.signupForm.value.role === 'BUYER' ? 3 : 2;
+  const signupData = {
+    name: this.signupForm.value.name,
+    email: this.signupForm.value.email,
+    password: this.signupForm.value.password
+  };
+
+  this.http.post(
+    `${environment.apiUrl}/auth/signup?roleId=${roleId}`,
+    signupData,
+    { headers: { 'Content-Type': 'application/json' }, responseType: 'text' }
+  ).subscribe({
+    next: () => {
+      this.isLoading = false;
+      this.snackBar.open('Signup successful! Please login.', 'Close', {
+        duration: 3000,
+        panelClass: ['snack-success']
+      });
+      this.router.navigate(['/login']);
+    },
+    error: (err) => {
+      this.isLoading = false;
+      this.snackBar.open(
+        err?.error?.message || 'Signup failed. Email may already exist.',
+        'Close',
+        { duration: 3000, panelClass: ['snack-error'] }
+      );
+    }
+  });
+}
+
 }

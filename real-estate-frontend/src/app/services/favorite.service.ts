@@ -4,10 +4,12 @@ import { Observable, of, throwError } from 'rxjs';
 import { Property } from '../models/property.model';
 import { AuthService } from './auth.service';
 import { map, switchMap } from 'rxjs/operators';
+import { environment } from '../../environments/environment';
+
 
 @Injectable({ providedIn: 'root' })
 export class FavoriteService {
-  private baseUrl = 'http://localhost:8080/api/favorites';
+  private baseUrl = environment.apiUrl + '/favorites';
 
   constructor(
     private http: HttpClient,

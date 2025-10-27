@@ -2,12 +2,14 @@ import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Property } from '../models/property.model';
 import { Observable } from 'rxjs';
+import { environment } from '../../environments/environment';
+
 
 @Injectable({
   providedIn: 'root'
 })
 export class PropertyService {
-  private baseUrl = 'http://localhost:8080/api/properties';
+  private baseUrl = environment.apiUrl + '/properties';
 
   constructor(private http: HttpClient) { }
 
@@ -38,12 +40,11 @@ export class PropertyService {
 
   // Delete property
   deleteProperty(propertyId: number) {
-  return this.http.delete(
-    `http://localhost:8080/api/properties/${propertyId}`,
-    { responseType: 'text' as 'json' }
-  );
-}
-
+    return this.http.delete(
+      `${environment.apiUrl}/properties/${propertyId}`,
+      { responseType: 'text' as 'json' }
+    );
+  }
 
   // Search properties by title
   searchByTitle(title: string): Observable<Property[]> {

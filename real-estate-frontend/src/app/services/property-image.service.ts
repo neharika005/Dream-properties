@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
+import { environment } from '../../environments/environment';
 
 export interface PropertyImageDto {
   id?: number;
@@ -11,7 +12,7 @@ export interface PropertyImageDto {
   providedIn: 'root'
 })
 export class PropertyImageService {
-  private baseUrl = 'http://localhost:8080/api/property-images';
+  private baseUrl = environment.apiUrl + '/property-images';
 
   constructor(private http: HttpClient) {}
 
@@ -25,11 +26,10 @@ export class PropertyImageService {
     return this.http.get<PropertyImageDto[]>(`${this.baseUrl}/property/${propertyId}`);
   }
 
-  // Delete image by id (full URL overrides baseUrl)
-deleteImage(imageId: number): Observable<void> {
-  return this.http.delete<void>(`http://localhost:8080/api/images/${imageId}`);
-}
-
+  // Delete image by id
+  deleteImage(imageId: number): Observable<void> {
+    return this.http.delete<void>(`${environment.apiUrl.replace('/api', '')}/images/${imageId}`);
+  }
 
   // Get single image by id
   getImageById(imageId: number): Observable<PropertyImageDto> {

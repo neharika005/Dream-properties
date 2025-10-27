@@ -2,10 +2,12 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { Inquiry } from '../models/inquiry.model';
+import { environment } from '../../environments/environment';
+
 
 @Injectable({ providedIn: 'root' })
 export class InquiryService {
-  private baseUrl = 'http://localhost:8080/api/inquiries';
+  private baseUrl = environment.apiUrl + '/inquiries';
 
   constructor(private http: HttpClient) {}
 
@@ -32,9 +34,8 @@ export class InquiryService {
     );
   }
 
-  // Get all inquiries (you can customize this if needed)
-getInquiries(): Observable<Inquiry[]> {
-  return this.http.get<Inquiry[]>(this.baseUrl);
-}
-
+  // Get all inquiries
+  getInquiries(): Observable<Inquiry[]> {
+    return this.http.get<Inquiry[]>(this.baseUrl);
+  }
 }
