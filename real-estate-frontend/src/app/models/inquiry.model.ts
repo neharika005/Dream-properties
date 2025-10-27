@@ -5,7 +5,7 @@ export interface Inquiry {
   name: string;
   email: string;
   message: string;
-  status: string;
+  status?: string;
   buyerId?: number;
   createdAt?: string;
   agentName?: string;
