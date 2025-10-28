@@ -1,0 +1,40 @@
+<div class="admin-dashboard container">
+  <header>
+    <h1>Admin Dashboard - Agent Approvals</h1>
+  </header>
+
+  <div *ngIf="isLoading" class="loading">Loading agents...</div>
+  <div *ngIf="errorMsg" class="error">{{ errorMsg }}</div>
+
+  <table *ngIf="!isLoading && agents.length > 0" class="agents-table">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Email</th>
+        <th>Approved</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let agent of agents">
+        <td>{{ agent.name }}</td>
+        <td>{{ agent.email }}</td>
+        <td>
+          <span class="badge" [class.badge-approved]="agent.approved" [class.badge-unapproved]="!agent.approved">
+            {{ agent.approved ? 'Approved' : 'Not Approved' }}
+          </span>
+        </td>
+        <td>
+          <button *ngIf="!agent.approved" class="btn-approve" (click)="approveAgent(agent.id)">
+            Approve
+          </button>
+          <button *ngIf="agent.approved" class="btn-disapprove" (click)="disapproveAgent(agent.id)">
+            Disapprove
+          </button>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div *ngIf="!isLoading && agents.length === 0" class="empty">No agents found.</div>
+</div>
