@@ -45,3 +45,5 @@ jobs:
           export PATH="$HOME/.local/bin:$PATH"
           ansible-playbook -i ansible/inventory ansible/deploy.yml
         shell: bash
+
+        # okay
