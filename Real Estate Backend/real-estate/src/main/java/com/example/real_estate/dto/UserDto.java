@@ -14,8 +14,14 @@ public class UserDto {
 
     @NotNull(message = "ID is required")
     private Long id;
+
     private String name;
+
     private String email;
+
     private String password;
+
+    // New field for approval status
+    private boolean approved;
 
 }
