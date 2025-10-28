@@ -11,34 +11,51 @@
 
     <!-- Navigation Buttons -->
     <nav class="header-nav">
+      <!-- Properties button always visible -->
       <button 
         class="nav-button"
         [class.active]="isActive('/properties')"
-        (click)="navigateTo('/properties')"
-      >
+        (click)="navigateTo('/properties')">
         Properties
       </button>
       
+      <!-- Only buyer sees Buyer Dashboard -->
       <button 
+        *ngIf="authService.getUserRole() === 'BUYER'"
         class="nav-button nav-button-saved"
         [class.active]="isActive('/dashboard')"
-        (click)="navigateTo('/dashboard')"
-      >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
-        </svg>
-        dashboard
+        (click)="navigateTo('/dashboard')">
+        Dashboard
+      </button>
+
+      <!-- Only agent sees Agent Dashboard -->
+      <button 
+        *ngIf="authService.getUserRole() === 'AGENT'"
+        class="nav-button nav-button-saved"
+        [class.active]="isActive('/agent-dashboard')"
+        (click)="navigateTo('/agent-dashboard')">
+        Dashboard
+      </button>
+
+      <!-- Only admin sees Admin Dashboard -->
+      <button 
+        *ngIf="authService.getUserRole() === 'ADMIN'"
+        class="nav-button"
+        [class.active]="isActive('/admin-dashboard')"
+        (click)="navigateTo('/admin-dashboard')">
+        Approvals
       </button>
     </nav>
 
     <!-- User Profile -->
-
-<div class="header-user" style="position:relative;">
-  <div class="user-avatar" (click)="toggleLogout()">
-    <span>P</span>
+    <div class="header-user" style="position:relative;">
+      <div class="user-avatar" (click)="toggleLogout()">
+        <span>P</span>
+      </div>
+      <span class="user-name" (click)="toggleLogout()">profile</span>
+      <div *ngIf="showLogout" class="logout-dropdown">
+        <button class="logout-btn" (click)="logout()">Logout</button>
+      </div>
+    </div>
   </div>
-  <span class="user-name" (click)="toggleLogout()">profile</span>
-  <div *ngIf="showLogout" class="logout-dropdown">
-    <button class="logout-btn" (click)="logout()">Logout</button>
-  </div>
-</div>
+</header>
