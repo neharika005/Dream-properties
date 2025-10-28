@@ -20,6 +20,12 @@ import com.example.real_estate.service.UserService;
 @PreAuthorize("hasRole('ADMIN')")
 public class AdminController {
 
+    @PostConstruct
+public void init() {
+    System.out.println("AdminController loaded!");
+}
+
+
     @Autowired
     private UserService userService;
 
