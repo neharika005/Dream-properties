@@ -31,14 +31,41 @@
         force: yes
         accept_hostkey: yes
 
+    - name: Ensure Docker and dependencies are installed
+      apt:
+        name:
+          - docker.io
+          - docker-compose
+          - maven
+          - nodejs
+          - npm
+        state: present
+        update_cache: yes
+
     - name: Ensure docker network exists
-      docker_network:
+      community.docker.docker_network:
         name: "{{ docker_network }}"
         state: present
 
-    # MYSQL PART REMAINS AS IN YOUR PLAYBOOK
+    # --- MySQL container setup ---
+    - name: Ensure MySQL container is running
+      community.docker.docker_container:
+        name: "{{ mysql_container }}"
+        image: mysql:8
+        state: started
+        restart_policy: unless-stopped
+        env:
+          MYSQL_ROOT_PASSWORD: "{{ mysql_root_password }}"
+          MYSQL_DATABASE: real_estate_portal
+        ports:
+          - "{{ mysql_port }}:3306"
+        volumes:
+          - /home/ubuntu/mysql_data:/var/lib/mysql
+        networks:
+          - name: "{{ docker_network }}"
 
-    - name: Clean backend target directory (remove old build artifacts)
+    # --- Backend build ---
+    - name: Clean backend target directory
       file:
         path: "{{ backend_dir }}/target"
         state: absent
@@ -48,23 +75,23 @@
       args:
         chdir: "{{ backend_dir }}"
 
-    - name: Ensure backend jar exists (fail if not built)
+    - name: Ensure backend JAR was built
       stat:
         path: "{{ backend_dir }}/target/*.jar"
       register: backend_jar
 
-    - name: Fail if backend jar was not built
+    - name: Fail if backend JAR not built
       fail:
-        msg: "Backend artifact was not built. Check Maven output for errors."
+        msg: "Backend JAR not found. Check Maven build logs."
       when: not backend_jar.stat.exists
 
-    - name: Stop and remove existing backend container (if present)
-      docker_container:
+    - name: Stop and remove existing backend container
+      community.docker.docker_container:
         name: "{{ backend_container }}"
         state: absent
         force_kill: yes
 
-    - name: Build backend docker image (always latest source and artifact)
+    - name: Build backend Docker image
       community.docker.docker_image:
         name: "{{ backend_container }}"
         tag: latest
@@ -75,7 +102,7 @@
         DOCKER_BUILDKIT: '1'
 
     - name: Run backend container
-      docker_container:
+      community.docker.docker_container:
         name: "{{ backend_container }}"
         image: "{{ backend_container }}:latest"
         state: started
@@ -89,12 +116,19 @@
         networks:
           - name: "{{ docker_network }}"
 
-    - name: Build Angular frontend (for header, UI, admin page updates)
+    # --- Frontend build ---
+    - name: Build Angular frontend
       shell: npm install && npm run build -- --configuration production
       args:
         chdir: "{{ frontend_dir }}"
 
-    - name: Build frontend docker image (after build)
+    - name: Stop and remove existing frontend container
+      community.docker.docker_container:
+        name: "{{ frontend_container }}"
+        state: absent
+        force_kill: yes
+
+    - name: Build frontend Docker image
       community.docker.docker_image:
         name: "{{ frontend_container }}"
         tag: latest
@@ -104,14 +138,8 @@
       environment:
         DOCKER_BUILDKIT: '1'
 
-    - name: Stop and remove existing frontend container (if present)
-      docker_container:
-        name: "{{ frontend_container }}"
-        state: absent
-        force_kill: yes
-
     - name: Run frontend container
-      docker_container:
+      community.docker.docker_container:
         name: "{{ frontend_container }}"
         image: "{{ frontend_container }}:latest"
         state: started
@@ -121,7 +149,26 @@
         networks:
           - name: "{{ docker_network }}"
 
-    # NGINX HANDLERS REMAIN AS IN YOUR PLAYBOOK
+    # --- Nginx SPA routing setup (optional) ---
+    - name: Ensure Nginx SPA routing (index.html fallback)
+      block:
+        - name: Check if Nginx is installed
+          command: nginx -v
+          register: nginx_check
+          ignore_errors: yes
+
+        - name: Add SPA fallback if Nginx exists
+          lineinfile:
+            path: /etc/nginx/sites-available/default
+            regexp: '^\s*try_files'
+            line: '        try_files $uri $uri/ /index.html;'
+          when: nginx_check.rc == 0
+          notify:
+            - Reload systemd daemon
+            - Restart nginx
+      rescue:
+        - debug:
+            msg: "Nginx not found — skipping SPA routing configuration."
 
   handlers:
     - name: Reload systemd daemon
