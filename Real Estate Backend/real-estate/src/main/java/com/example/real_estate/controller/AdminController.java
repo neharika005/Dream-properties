@@ -24,9 +24,15 @@ public class AdminController {
     private UserService userService;
 
     @GetMapping("/agents")
-    public List<AgentApprovalDto> getAllAgents() {
+public List<AgentApprovalDto> getAllAgents() {
+    try {
         return userService.getAllAgentApprovals();
+    } catch (Exception ex) {
+        ex.printStackTrace(); // Also log to your log system
+        throw ex; // or return a more detailed error if appropriate
     }
+}
+
 
     @PostMapping("/approve/{agentId}")
     public ResponseEntity<Map<String, String>> approveAgent(@PathVariable Long agentId) {
