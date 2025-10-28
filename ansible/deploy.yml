@@ -5,7 +5,7 @@
 
   vars:
     app_base: /home/ubuntu/Dream-properties
-    backend_dir: /home/ubuntu/Dream-properties/"Real Estate Backend"
+    backend_dir: /home/ubuntu/Dream-properties/"Real Estate Backend"/real-estate
     frontend_dir: /home/ubuntu/Dream-properties/real-estate-frontend
 
   tasks:
@@ -72,7 +72,7 @@
     # --- Build Backend ---
     - name: Build backend using Maven
       shell: |
-        cd "{{ app_base }}/Real Estate Backend"
+        cd "{{ backend_dir }}"
         mvn clean package -DskipTests
       args:
         executable: /bin/bash
