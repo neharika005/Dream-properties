@@ -145,14 +145,21 @@
             regexp: '^\s*try_files'
             line: '        try_files $uri $uri/ /index.html;'
           when: nginx_check.rc == 0
-          notify: Reload nginx
+          notify:
+            - Reload systemd daemon
+            - Restart nginx
 
       rescue:
         - debug:
             msg: "Nginx not found — skipping SPA routing configuration."
 
   handlers:
-    - name: Reload nginx
+    - name: Reload systemd daemon
+      command: systemctl daemon-reload
+      become: yes
+
+    - name: Restart nginx
       service:
         name: nginx
-        state: reloaded
+        state: restarted
+      become: yes
