@@ -12,13 +12,13 @@ public class WebConfig implements WebMvcConfigurer {
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         registry
                 .addResourceHandler("/uploads/**")
-                .addResourceLocations("file:/home/ubuntu/Dream-properties/Real Estate Backend/uploads/");
-
+                .addResourceLocations("file:uploads/");
+    }
 
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**")
-                .allowedOrigins("http://localhost:4200","http://3.150.208.51:80")
+                .allowedOrigins("http://localhost:4200", "http://3.150.208.51")
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
                 .allowCredentials(true);
