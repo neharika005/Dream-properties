@@ -36,7 +36,6 @@
         name: "{{ docker_network }}"
         state: present
 
-    # MySQL Block only runs if you set recreate_mysql: true in extra vars
     - name: Ensure MySQL container is present (optional recreate)
       block:
         - name: Stop mysql container if exists
@@ -44,11 +43,13 @@
             name: "{{ mysql_container }}"
             state: stopped
           when: recreate_mysql | default(false)
+
         - name: Remove mysql container if exists
           docker_container:
             name: "{{ mysql_container }}"
             state: absent
           when: recreate_mysql | default(false)
+
         - name: Run mysql container (if absent)
           docker_container:
             name: "{{ mysql_container }}"
@@ -68,7 +69,6 @@
         - debug:
             msg: "MySQL step skipped or failed; confirm container state manually."
 
-    # ------------------- Backend deployment -------------------
     - name: Build backend docker image
       community.docker.docker_image:
         name: "{{ backend_container }}"
@@ -100,7 +100,6 @@
         networks:
           - name: "{{ docker_network }}"
 
-    # ------------------- Frontend deployment -------------------
     - name: Build Angular frontend (for header, UI, admin page updates)
       shell: npm install && npm run build -- --configuration production
       args:
@@ -133,7 +132,6 @@
         networks:
           - name: "{{ docker_network }}"
 
-    # ------------------- Nginx SPA routing fix -------------------
     - name: Ensure Nginx config has SPA routing for Angular (index.html fallback)
       block:
         - name: Add try_files line for SPA fallback
@@ -147,11 +145,8 @@
           service:
             name: nginx
             state: reloaded
-      when: 
-        - "'nginx' in ansible_facts.services"
-        - frontend_container == 'nginx'
+      when: "'nginx' in ansible_facts['packages'] or 'nginx' in ansible_facts['services']"
 
-    # ------------------- Health check -------------------
     - name: Wait for backend to be healthy
       uri:
         url: "http://localhost:{{ backend_port }}/actuator/health"
@@ -162,3 +157,9 @@
       delay: 5
       until: health_check.status == 200
       ignore_errors: yes
+
+  handlers:
+    - name: Reload nginx
+      service:
+        name: nginx
+        state: reloaded
