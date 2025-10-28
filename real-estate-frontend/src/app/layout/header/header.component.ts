@@ -2,6 +2,8 @@ import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule, NavigationEnd } from '@angular/router';
 import { filter } from 'rxjs';
+import { AuthService } from '../../services/auth.service';
+
 
 @Component({
   selector: 'app-header',
@@ -14,7 +16,7 @@ export class HeaderComponent {
   currentRoute = '';
   showLogout = false;
 
-  constructor(private router: Router) {
+  constructor(private router: Router, public authService: AuthService) {
     this.router.events
       .pipe(filter(event => event instanceof NavigationEnd))
       .subscribe((event: any) => {
@@ -28,9 +30,26 @@ export class HeaderComponent {
     this.router.navigate([route]);
   }
 
+  // Role-aware dashboard navigation
+  navigateToDashboard(): void {
+    const role = this.authService.getUserRole();
+    if (role === 'ADMIN' || role === 'AGENT') {
+      this.router.navigate(['/agent-dashboard']);
+    } else if (role === 'BUYER') {
+      this.router.navigate(['/dashboard']);
+    } else {
+      this.router.navigate(['/login']);
+    }
+  }
+
   isActive(route: string): boolean {
     if (route === '/properties') {
-      return this.currentRoute === '/' || this.currentRoute === '/properties' || this.currentRoute.startsWith('/property/');
+      return this.currentRoute === '/' ||
+             this.currentRoute === '/properties' ||
+             this.currentRoute.startsWith('/property/');
+    }
+    if (route === '/dashboard' || route === '/agent-dashboard') {
+      return this.currentRoute === '/dashboard' || this.currentRoute === '/agent-dashboard';
     }
     return this.currentRoute.startsWith(route);
   }
@@ -41,6 +60,8 @@ export class HeaderComponent {
 
   logout(): void {
     sessionStorage.removeItem('token');
+    sessionStorage.removeItem('authToken');
+    sessionStorage.removeItem('user');
     this.router.navigate(['/login']);
   }
 }
