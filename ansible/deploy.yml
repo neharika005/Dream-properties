@@ -133,33 +133,28 @@
           - name: "{{ docker_network }}"
 
     - name: Ensure Nginx config has SPA routing for Angular (index.html fallback)
-      block:
-        - name: Add try_files line for SPA fallback
-          lineinfile:
-            path: /etc/nginx/sites-available/default
-            regexp: '^\s*try_files'
-            line: '        try_files $uri $uri/ /index.html;'
-          notify: Reload nginx
-
-        - name: Reload nginx
-          service:
-            name: nginx
-            state: reloaded
-      when: "'nginx' in ansible_facts['packages'] or 'nginx' in ansible_facts['services']"
-
-    - name: Wait for backend to be healthy
-      uri:
-        url: "http://localhost:{{ backend_port }}/actuator/health"
-        method: GET
-        status_code: 200
-      register: health_check
-      retries: 8
-      delay: 5
-      until: health_check.status == 200
+ # ------------------- Nginx SPA routing fix -------------------
+- name: Ensure Nginx SPA routing (index.html fallback)
+  block:
+    - name: Check if Nginx is installed
+      command: nginx -v
+      register: nginx_check
       ignore_errors: yes
 
-  handlers:
-    - name: Reload nginx
-      service:
-        name: nginx
-        state: reloaded
+    - name: Add try_files line for SPA fallback if Nginx exists
+      lineinfile:
+        path: /etc/nginx/sites-available/default
+        regexp: '^\s*try_files'
+        line: '        try_files $uri $uri/ /index.html;'
+      when: nginx_check.rc == 0
+      notify: Reload nginx
+
+  rescue:
+    - debug:
+        msg: "Nginx not found — skipping SPA routing configuration."
+
+handlers:
+  - name: Reload nginx
+    service:
+      name: nginx
+      state: reloaded
