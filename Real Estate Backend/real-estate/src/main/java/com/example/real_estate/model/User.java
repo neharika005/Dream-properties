@@ -36,6 +36,10 @@ public class User {
 
     private String password;
 
+    @Column(nullable = false)
+private boolean approved = false;
+
+
     @ManyToOne
     @JoinColumn(name = "role_id")
     private Role role;
