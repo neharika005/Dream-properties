@@ -5,7 +5,7 @@
 
   vars:
     app_base: /home/ubuntu/Dream-properties
-    backend_dir: /home/ubuntu/Dream-properties/"Real Estate Backend"/real-estate
+    backend_dir: "/home/ubuntu/Dream-properties/Real Estate Backend/real-estate"
     frontend_dir: /home/ubuntu/Dream-properties/real-estate-frontend
 
   tasks:
