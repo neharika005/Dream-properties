@@ -16,15 +16,16 @@ jobs:
       - name: Setup SSH key
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
+          echo "${{ secrets.EC2_SSH_KEY }}" | tr -d '\r' > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+        shell: bash
 
-      - name: Install Ansible and Docker collection
+      - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y python3-pip git
-          pip3 install --user ansible
+          pip3 install --upgrade --user ansible
           export PATH="$HOME/.local/bin:$PATH"
           ansible-galaxy collection install community.docker
 
@@ -43,3 +44,4 @@ jobs:
         run: |
           export PATH="$HOME/.local/bin:$PATH"
           ansible-playbook -i ansible/inventory ansible/deploy.yml
+        shell: bash
