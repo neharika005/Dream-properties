@@ -1,0 +1,85 @@
+.admin-dashboard {
+  max-width: 900px;
+  margin: 2.5rem auto;
+  background: #fff;
+  padding: 2rem 2.5rem;
+  border-radius: 12px;
+  box-shadow: 0 2px 14px rgba(0,0,0,0.08);
+
+  header {
+    margin-bottom: 1.5rem;
+    h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #232323;
+      margin: 0;
+      letter-spacing: 1px;
+    }
+  }
+
+  .loading, .error, .empty {
+    color: #888;
+    margin: 2rem 0 1rem 0;
+    font-style: italic;
+    font-size: 1.1rem;
+  }
+  .error { color: #dc3545; }
+
+  .agents-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 1.5rem;
+
+    th, td {
+      padding: 0.8rem 1.2rem;
+      border-bottom: 1px solid #eef0f6;
+      text-align: left;
+    }
+
+    th {
+      background: #f8fafc;
+      color: #555;
+      font-weight: 600;
+      font-size: 1.02rem;
+    }
+    td {
+      vertical-align: middle;
+    }
+    .badge {
+      padding: 0.35em 1em;
+      border-radius: 100px;
+      font-size: 0.98em;
+      font-weight: 600;
+      display: inline-block;
+    }
+    .badge-approved {
+      background: #e7fbe7;
+      color: #21a521;
+    }
+    .badge-unapproved {
+      background: #fff0f0;
+      color: #c92c2c;
+    }
+    .btn-approve, .btn-disapprove {
+      border: none;
+      border-radius: 5px;
+      color: #fff;
+      font-weight: 700;
+      padding: 0.45rem 1.1rem;
+      cursor: pointer;
+      margin: 0 2px;
+      font-size: 1em;
+      transition: background 0.19s;
+
+      &:focus { outline: none; }
+    }
+    .btn-approve {
+      background: #21a521;
+      &:hover { background: #188818; }
+    }
+    .btn-disapprove {
+      background: #c92c2c;
+      &:hover { background: #a11d1d; }
+    }
+  }
+}
