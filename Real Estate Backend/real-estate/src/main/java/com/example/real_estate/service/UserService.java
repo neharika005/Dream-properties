@@ -1,12 +1,14 @@
 package com.example.real_estate.service;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import com.example.real_estate.dto.AgentApprovalDto;
 import com.example.real_estate.dto.UserDto;
 import com.example.real_estate.exception.DuplicateResourceException;
 import com.example.real_estate.exception.ResourceNotFoundException;
@@ -20,10 +22,8 @@ public class UserService {
 
     @Autowired
     private UserRepository userRepository;
-
     @Autowired
     private RoleRepository roleRepository;
-
     @Autowired
     private PasswordEncoder passwordEncoder;
 
@@ -65,7 +65,6 @@ public class UserService {
 
         user.setName(dto.getName());
         user.setEmail(dto.getEmail());
-
         if (dto.getPassword() != null && !dto.getPassword().isBlank()) {
             user.setPassword(passwordEncoder.encode(dto.getPassword()));
         }
@@ -80,11 +79,45 @@ public class UserService {
         userRepository.delete(user);
     }
 
+    // Agent Approval for Admin Dashboard
+    public List<AgentApprovalDto> getAllAgentApprovals() {
+        return userRepository.findByRole_Name("AGENT")
+                .stream()
+                .map(user -> AgentApprovalDto.builder()
+                        .id(user.getId())
+                        .name(user.getName())
+                        .email(user.getEmail())
+                        .approved(user.isApproved())
+                        .build()
+                ).collect(Collectors.toList());
+    }
+
+    // Utility for UserDto mapping
     private UserDto mapToDto(User user) {
         return UserDto.builder()
                 .id(user.getId())
                 .name(user.getName())
                 .email(user.getEmail())
                 .build();
+    }
+
+    // Approve/disapprove functions for admin
+    public boolean approveAgentById(Long agentId) {
+        return setApprovalStatus(agentId, true);
+    }
+    public boolean disapproveAgentById(Long agentId) {
+        return setApprovalStatus(agentId, false);
+    }
+    private boolean setApprovalStatus(Long userId, boolean status) {
+        Optional<User> userOpt = userRepository.findById(userId);
+        if (userOpt.isPresent()) {
+            User user = userOpt.get();
+            if (user.getRole() != null && "AGENT".equalsIgnoreCase(user.getRole().getName())) {
+                user.setApproved(status);
+                userRepository.save(user);
+                return true;
+            }
+        }
+        return false;
     }
 }
