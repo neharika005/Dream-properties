@@ -102,7 +102,7 @@
 
     # ------------------- Frontend deployment -------------------
     - name: Build Angular frontend (for header, UI, admin page updates)
-      command: npm install && npm run build -- --configuration production
+      shell: npm install && npm run build -- --configuration production
       args:
         chdir: "{{ frontend_dir }}"
 
@@ -135,18 +135,21 @@
 
     # ------------------- Nginx SPA routing fix -------------------
     - name: Ensure Nginx config has SPA routing for Angular (index.html fallback)
-      lineinfile:
-        path: /etc/nginx/sites-available/default
-        regexp: '^\s*try_files'
-        line: '        try_files $uri $uri/ /index.html;'
-      notify: Reload nginx
-      when: frontend_container == 'nginx' or service_facts['services'] is defined and ('nginx' in service_facts['services'])
+      block:
+        - name: Add try_files line for SPA fallback
+          lineinfile:
+            path: /etc/nginx/sites-available/default
+            regexp: '^\s*try_files'
+            line: '        try_files $uri $uri/ /index.html;'
+          notify: Reload nginx
 
-    - name: Reload nginx
-      service:
-        name: nginx
-        state: reloaded
-      when: frontend_container == 'nginx' or service_facts['services'] is defined and ('nginx' in service_facts['services'])
+        - name: Reload nginx
+          service:
+            name: nginx
+            state: reloaded
+      when: 
+        - "'nginx' in ansible_facts.services"
+        - frontend_container == 'nginx'
 
     # ------------------- Health check -------------------
     - name: Wait for backend to be healthy
