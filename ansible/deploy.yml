@@ -5,7 +5,7 @@
 
   vars:
     app_base: /home/ubuntu/Dream-properties
-    backend_dir: /home/ubuntu/Dream-properties/"Real Estate Backend"
+    backend_dir: /home/ubuntu/Dream-properties/Real-Estate-Backend
     frontend_dir: /home/ubuntu/Dream-properties/real-estate-frontend
 
   tasks:
@@ -29,7 +29,7 @@
         state: present
         update_cache: yes
 
-    # --- Install Docker ---
+    # --- Install Docker and Maven ---
     - name: Install Docker and Maven
       apt:
         name:
@@ -45,14 +45,12 @@
         enabled: yes
 
     # --- Install Node.js ---
-      
     - name: Install Node.js 18.x from NodeSource
       shell: |
         curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
         apt-get install -y nodejs
       args:
         executable: /bin/bash
-
 
     # --- Verify Versions ---
     - name: Check installed versions
@@ -75,21 +73,20 @@
         version: main
         force: yes
 
-       - name: Build backend application
+    - name: Build backend application
       shell: |
-        cd "{{ project_dir }}/Real Estate Backend"
+        cd "{{ backend_dir }}"
         mvn clean package -DskipTests
       args:
         executable: /bin/bash
 
-
     - name: Build frontend application
       shell: |
-        cd {{ frontend_dir }}
+        cd "{{ frontend_dir }}"
         npm install
-        npm run build
+        npm run build -- --configuration production
       args:
-        chdir: "{{ frontend_dir }}"
+        executable: /bin/bash
 
     # --- Docker Compose Deployment ---
     - name: Copy Docker Compose file
@@ -104,7 +101,7 @@
         docker compose down
         docker compose up -d --build
       args:
-        warn: false
+        executable: /bin/bash
 
     - name: Verify running containers
       shell: docker ps
