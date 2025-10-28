@@ -132,29 +132,27 @@
         networks:
           - name: "{{ docker_network }}"
 
-    - name: Ensure Nginx config has SPA routing for Angular (index.html fallback)
- # ------------------- Nginx SPA routing fix -------------------
-- name: Ensure Nginx SPA routing (index.html fallback)
-  block:
-    - name: Check if Nginx is installed
-      command: nginx -v
-      register: nginx_check
-      ignore_errors: yes
+    - name: Ensure Nginx SPA routing (index.html fallback)
+      block:
+        - name: Check if Nginx is installed
+          command: nginx -v
+          register: nginx_check
+          ignore_errors: yes
 
-    - name: Add try_files line for SPA fallback if Nginx exists
-      lineinfile:
-        path: /etc/nginx/sites-available/default
-        regexp: '^\s*try_files'
-        line: '        try_files $uri $uri/ /index.html;'
-      when: nginx_check.rc == 0
-      notify: Reload nginx
+        - name: Add try_files line for SPA fallback if Nginx exists
+          lineinfile:
+            path: /etc/nginx/sites-available/default
+            regexp: '^\s*try_files'
+            line: '        try_files $uri $uri/ /index.html;'
+          when: nginx_check.rc == 0
+          notify: Reload nginx
 
-  rescue:
-    - debug:
-        msg: "Nginx not found — skipping SPA routing configuration."
+      rescue:
+        - debug:
+            msg: "Nginx not found — skipping SPA routing configuration."
 
-handlers:
-  - name: Reload nginx
-    service:
-      name: nginx
-      state: reloaded
+  handlers:
+    - name: Reload nginx
+      service:
+        name: nginx
+        state: reloaded
