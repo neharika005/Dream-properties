@@ -12,8 +12,8 @@ public class WebConfig implements WebMvcConfigurer {
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         registry
                 .addResourceHandler("/uploads/**")
-                .addResourceLocations("file:uploads/");
-    }
+                .addResourceLocations("file:/home/ubuntu/Dream-properties/Real Estate Backend/uploads/");
+
 
     @Override
     public void addCorsMappings(CorsRegistry registry) {
