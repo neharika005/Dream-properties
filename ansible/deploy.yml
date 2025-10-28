@@ -25,14 +25,25 @@
           - nginx
         state: present
 
-    # --- Install Docker and Maven ---
-    - name: Install Docker and Maven
+    # --- Install Java, Docker, Maven ---
+    - name: Install OpenJDK 17, Docker, and Maven
       apt:
         name:
+          - openjdk-17-jdk
           - docker.io
           - maven
         state: present
         update_cache: yes
+
+    - name: Verify Java installation
+      shell: |
+        java -version
+        javac -version
+      register: java_version
+      changed_when: false
+
+    - debug:
+        var: java_version.stdout_lines
 
     - name: Ensure Docker service is running
       service:
@@ -51,6 +62,7 @@
     # --- Verify Versions ---
     - name: Display installed versions
       shell: |
+        echo "Java version: $(java -version 2>&1 | head -n 1)"
         echo "Docker version: $(docker --version)"
         echo "Maven version: $(mvn -version | head -n 1)"
         echo "Node version: $(node -v)"
