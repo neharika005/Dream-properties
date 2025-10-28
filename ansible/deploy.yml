@@ -5,19 +5,16 @@
 
   vars:
     app_base: /home/ubuntu/Dream-properties
-    backend_dir: /home/ubuntu/Dream-properties/Real-Estate-Backend
+    backend_dir: /home/ubuntu/Dream-properties/"Real Estate Backend"
     frontend_dir: /home/ubuntu/Dream-properties/real-estate-frontend
 
   tasks:
-
     # --- System Setup ---
-    - name: Update apt cache
+    - name: Update apt cache and install base packages
       apt:
         update_cache: yes
-
-    - name: Install required packages
-      apt:
         name:
+          - git
           - curl
           - ca-certificates
           - gnupg
@@ -27,7 +24,6 @@
           - apt-transport-https
           - nginx
         state: present
-        update_cache: yes
 
     # --- Install Docker and Maven ---
     - name: Install Docker and Maven
@@ -38,34 +34,34 @@
         state: present
         update_cache: yes
 
-    - name: Ensure Docker service is started and enabled
+    - name: Ensure Docker service is running
       service:
         name: docker
         state: started
         enabled: yes
 
-    # --- Install Node.js ---
-    - name: Install Node.js 18.x from NodeSource
+    # --- Install Node.js 18.x ---
+    - name: Install Node.js 18.x
       shell: |
-        curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+        curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
         apt-get install -y nodejs
       args:
         executable: /bin/bash
 
     # --- Verify Versions ---
-    - name: Check installed versions
+    - name: Display installed versions
       shell: |
-        docker --version
-        mvn -version
-        node -v
-        npm -v
-      register: version_check
+        echo "Docker version: $(docker --version)"
+        echo "Maven version: $(mvn -version | head -n 1)"
+        echo "Node version: $(node -v)"
+        echo "NPM version: $(npm -v)"
+      register: version_output
       changed_when: false
 
     - debug:
-        var: version_check.stdout_lines
+        var: version_output.stdout_lines
 
-    # --- Application Setup ---
+    # --- Clone GitHub Repository ---
     - name: Clone latest code from GitHub
       git:
         repo: "https://github.com/neharika005/Dream-properties.git"
@@ -73,14 +69,16 @@
         version: main
         force: yes
 
-    - name: Build backend application
+    # --- Build Backend ---
+    - name: Build backend using Maven
       shell: |
-        cd "{{ backend_dir }}"
+        cd "{{ app_base }}/Real Estate Backend"
         mvn clean package -DskipTests
       args:
         executable: /bin/bash
 
-    - name: Build frontend application
+    # --- Build Frontend ---
+    - name: Build Angular frontend
       shell: |
         cd "{{ frontend_dir }}"
         npm install
@@ -89,21 +87,15 @@
         executable: /bin/bash
 
     # --- Docker Compose Deployment ---
-    - name: Copy Docker Compose file
-      copy:
-        src: "{{ backend_dir }}/docker-compose.yml"
-        dest: "{{ app_base }}/docker-compose.yml"
-        remote_src: yes
-
-    - name: Build and start Docker containers
+    - name: Stop and rebuild Docker containers
       shell: |
-        cd {{ app_base }}
-        docker compose down
+        cd "{{ app_base }}"
+        docker compose down || true
         docker compose up -d --build
       args:
         executable: /bin/bash
 
-    - name: Verify running containers
+    - name: Verify running Docker containers
       shell: docker ps
       register: docker_ps
       changed_when: false
@@ -111,8 +103,8 @@
     - debug:
         var: docker_ps.stdout_lines
 
-    # --- Nginx Reverse Proxy Configuration ---
-    - name: Create Nginx configuration file
+    # --- Nginx Reverse Proxy Setup ---
+    - name: Create Nginx configuration for reverse proxy
       copy:
         dest: /etc/nginx/sites-available/real_estate.conf
         content: |
@@ -135,19 +127,19 @@
               }
           }
 
-    - name: Enable Nginx site
+    - name: Enable custom Nginx site
       file:
         src: /etc/nginx/sites-available/real_estate.conf
         dest: /etc/nginx/sites-enabled/real_estate.conf
         state: link
         force: yes
 
-    - name: Remove default Nginx site if exists
+    - name: Remove default Nginx site
       file:
         path: /etc/nginx/sites-enabled/default
         state: absent
 
-    - name: Reload systemd daemon
+    - name: Reload Nginx daemon
       command: systemctl daemon-reload
 
     - name: Restart Nginx service
