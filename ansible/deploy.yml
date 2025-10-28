@@ -1,4 +1,4 @@
----
+
 - name: Deploy Real Estate application
   hosts: real_estate
   become: yes
