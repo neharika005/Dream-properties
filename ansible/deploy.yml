@@ -1,4 +1,3 @@
-
 - name: Deploy Real Estate application
   hosts: real_estate
   become: yes
@@ -11,7 +10,6 @@
     backend_container: real_estate_backend
     frontend_container: real_estate_frontend
     docker_network: real_estate_network
-    recreate_mysql: false   # set to true only if you need a clean MySQL
     mysql_root_password: root
     mysql_port: 3306
     backend_port: 8080
@@ -38,20 +36,19 @@
         name: "{{ docker_network }}"
         state: present
 
+    # MySQL Block only runs if you set recreate_mysql: true in extra vars
     - name: Ensure MySQL container is present (optional recreate)
       block:
         - name: Stop mysql container if exists
           docker_container:
             name: "{{ mysql_container }}"
             state: stopped
-          when: recreate_mysql
-
+          when: recreate_mysql | default(false)
         - name: Remove mysql container if exists
           docker_container:
             name: "{{ mysql_container }}"
             state: absent
-          when: recreate_mysql
-
+          when: recreate_mysql | default(false)
         - name: Run mysql container (if absent)
           docker_container:
             name: "{{ mysql_container }}"
@@ -66,11 +63,12 @@
             restart_policy: unless-stopped
             networks:
               - name: "{{ docker_network }}"
-      when: recreate_mysql
+          when: recreate_mysql | default(false)
       rescue:
         - debug:
             msg: "MySQL step skipped or failed; confirm container state manually."
 
+    # ------------------- Backend deployment -------------------
     - name: Build backend docker image
       community.docker.docker_image:
         name: "{{ backend_container }}"
@@ -102,7 +100,13 @@
         networks:
           - name: "{{ docker_network }}"
 
-    - name: Build frontend docker image
+    # ------------------- Frontend deployment -------------------
+    - name: Build Angular frontend (for header, UI, admin page updates)
+      command: npm install && npm run build -- --configuration production
+      args:
+        chdir: "{{ frontend_dir }}"
+
+    - name: Build frontend docker image (after build)
       community.docker.docker_image:
         name: "{{ frontend_container }}"
         tag: latest
@@ -129,6 +133,22 @@
         networks:
           - name: "{{ docker_network }}"
 
+    # ------------------- Nginx SPA routing fix -------------------
+    - name: Ensure Nginx config has SPA routing for Angular (index.html fallback)
+      lineinfile:
+        path: /etc/nginx/sites-available/default
+        regexp: '^\s*try_files'
+        line: '        try_files $uri $uri/ /index.html;'
+      notify: Reload nginx
+      when: frontend_container == 'nginx' or service_facts['services'] is defined and ('nginx' in service_facts['services'])
+
+    - name: Reload nginx
+      service:
+        name: nginx
+        state: reloaded
+      when: frontend_container == 'nginx' or service_facts['services'] is defined and ('nginx' in service_facts['services'])
+
+    # ------------------- Health check -------------------
     - name: Wait for backend to be healthy
       uri:
         url: "http://localhost:{{ backend_port }}/actuator/health"
