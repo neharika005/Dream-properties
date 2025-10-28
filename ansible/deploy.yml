@@ -45,12 +45,14 @@
         enabled: yes
 
     # --- Install Node.js ---
+      
     - name: Install Node.js 18.x from NodeSource
       shell: |
         curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
         apt-get install -y nodejs
       args:
-        warn: false
+        executable: /bin/bash
+
 
     # --- Verify Versions ---
     - name: Check installed versions
