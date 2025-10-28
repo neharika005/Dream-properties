@@ -8,6 +8,7 @@ import { AgentDashboardComponent } from "./dashboard/agent/agent.component";
 import { BuyerDashboardComponent } from "./dashboard/buyer/buyer.component";
 import { authGuard } from "./gaurds/auth.gaurd";
 import { roleGuard } from "./gaurds/role.gaurd";
+import { AdminDashboardComponent } from "./dashboard/admin/admin.component";
 
 export const routes: Routes = [
   // Default route - redirect to login
@@ -49,7 +50,7 @@ export const routes: Routes = [
     path: 'agent-dashboard', 
     component: AgentDashboardComponent,
     canActivate: [authGuard, roleGuard],
-    data: { expectedRole: 'AGENT' }
+    data: { expectedRole: 'AGENT'  }
   },
   { 
     path: 'agent/property/add', 
@@ -64,6 +65,12 @@ export const routes: Routes = [
     data: { expectedRole: 'AGENT' }
   },
   
+  {
+    path: 'admin-dashboard',
+    component: AdminDashboardComponent,
+    canActivate: [authGuard, roleGuard],
+    data: { expectedRole: 'ADMIN' }
+  },
   // Catch-all route - redirect to login
   { path: '**', redirectTo: '/login' }
 ];
