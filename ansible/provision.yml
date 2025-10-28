@@ -1,0 +1,67 @@
+---
+- name: Provision EC2 host for Real Estate app
+  hosts: real_estate
+  become: yes
+  tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: Install required packages
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - software-properties-common
+          - gnupg
+        state: present
+
+    - name: Add Docker GPG key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Add Docker apt repository
+      apt_repository:
+        repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu focal stable
+        state: present
+        filename: docker
+
+    - name: Install Docker and docker-compose plugin
+      apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+        state: latest
+        update_cache: yes
+
+    - name: Ensure docker service is started and enabled
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Add ubuntu user to docker group
+      user:
+        name: ubuntu
+        groups: docker
+        append: yes
+
+    - name: Create persistent mysql_data directory
+      file:
+        path: /home/ubuntu/mysql_data
+        state: directory
+        owner: ubuntu
+        mode: '0755'
+
+    - name: Ensure docker compose plugin is available (apt)
+      shell: |
+        apt-get update
+        apt-get install -y docker-compose-plugin
+      args:
+        warn: false
+      register: dc_install
+      changed_when: dc_install.rc == 0
