@@ -18,7 +18,8 @@ interface User {
   id?: number;
   name: string;
   email: string;
-  role: 'BUYER' | 'AGENT';
+  role: 'BUYER' | 'AGENT' | 'ADMIN';
+
 }
 
 interface LoginResponse {
@@ -87,18 +88,19 @@ export class AuthService {
   }
 
   getUserFromToken(): User | null {
-    const decoded = this.getDecodedToken();
-    if (!decoded) return null;
+  const decoded = this.getDecodedToken();
+  if (!decoded) return null;
 
-    const user: User = {
-      name: decoded.name || decoded.sub,
-      email: decoded.email,
-      role: decoded.roles?.[0]?.authority as 'BUYER' | 'AGENT' || 'BUYER'
-    };
+  const user: User = {
+    name: decoded.name || decoded.sub,
+    email: decoded.email,
+    role: decoded.roles?.[0]?.authority as 'BUYER' | 'AGENT' | 'ADMIN' || 'BUYER'
+  };
 
-    sessionStorage.setItem('user', JSON.stringify(user));
-    return user;
-  }
+  sessionStorage.setItem('user', JSON.stringify(user));
+  return user;
+}
+
 
   private getUserFromStorage(): User | null {
     const userStr = sessionStorage.getItem('user');
