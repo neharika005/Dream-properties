@@ -4,145 +4,78 @@
   become: yes
 
   vars:
-    project_root: /home/ubuntu/Dream-properties
-    backend_dir: "{{ project_root }}/Real Estate Backend"
-    frontend_dir: "{{ project_root }}/real-estate-frontend"
-    frontend_dist: "{{ frontend_dir }}/dist/real-estate-frontend/browser"
+    backend_dir: "/home/ubuntu/Dream-properties/Real Estate Backend/real-estate"
+    frontend_build_dir: "/home/ubuntu/Dream-properties/real-estate-frontend/dist/real-estate-frontend/browser"
+    backend_jar: "real-estate-0.0.1-SNAPSHOT.jar"
+    backend_image: "real_estate_backend"
+    frontend_image: "real_estate_frontend"
 
   tasks:
-    - name: Ensure Docker and dependencies are installed
+    - name: Ensure Docker and Nginx are installed
       apt:
         name:
           - docker.io
-          - docker-compose
+          - nginx
         state: present
         update_cache: yes
 
-    - name: Stop existing Docker containers
-      command: docker stop $(docker ps -q)
-      ignore_errors: yes
-
-    - name: Remove stopped containers
-      command: docker rm $(docker ps -a -q)
-      ignore_errors: yes
-
-    - name: Remove container using port 80 (if exists)
+    - name: Stop and remove existing containers
       shell: |
-        container_id=$(docker ps --filter "publish=80" -q)
-        if [ -n "$container_id" ]; then
-          docker stop $container_id
-        fi
-      ignore_errors: yes
+        docker stop {{ backend_image }} {{ frontend_image }} 2>/dev/null || true
+        docker rm {{ backend_image }} {{ frontend_image }} 2>/dev/null || true
 
-    - name: Pull latest code from repository
-      git:
-        repo: "https://github.com/neharika005/Dream-properties.git"
-        dest: "{{ project_root }}"
-        version: main
-        force: yes
-
-    - name: Build Angular frontend
-      shell: |
-        cd "{{ frontend_dir }}"
-        npm install
-        npm run build
-      args:
-        chdir: "{{ frontend_dir }}"
-
-    - name: Build backend Docker image
-      shell: |
-        cd "{{ backend_dir }}"
-        docker build -t real_estate_backend .
-      args:
-        chdir: "{{ backend_dir }}"
-
-    - name: Build frontend Docker image
-      shell: |
-        cd "{{ frontend_dir }}"
-        docker build -t real_estate_frontend .
-      args:
-        chdir: "{{ frontend_dir }}"
-      ignore_errors: yes
-
-    - name: Run MySQL container
-      shell: |
-        docker run -d --name real_estate_mysql \
-          -e MYSQL_ROOT_PASSWORD=root \
-          -e MYSQL_DATABASE=real_estate_db \
-          -p 3306:3306 \
-          mysql:8
-      ignore_errors: yes
-
-    - name: Run backend container
-      shell: |
-        docker run -d --name real_estate_backend \
-          --link real_estate_mysql:mysql \
-          -p 8080:8080 \
-          real_estate_backend
-      ignore_errors: yes
-
-    - name: Run frontend container
-      shell: |
-        docker run -d --name real_estate_frontend \
-          -p 80:80 \
-          real_estate_frontend
-      ignore_errors: yes
-
-    # ---- NGINX CONFIG ----
-    - name: Install Nginx
-      apt:
-        name: nginx
-        state: present
-        update_cache: yes
-
-    - name: Stop Nginx if port is busy
-      shell: |
-        if lsof -i :80 | grep nginx; then
-          systemctl stop nginx
-        fi
-      ignore_errors: yes
-
-    - name: Create Nginx config for real estate app
-      copy:
-        dest: /etc/nginx/sites-available/real_estate_frontend
-        content: |
-          server {
-              listen 80;
-              server_name _;
-
-              root {{ frontend_dist }};
-              index index.html;
-
-              location / {
-                  try_files $uri $uri/ /index.html;
-              }
-
-              error_page 404 /index.html;
-          }
-
-    - name: Enable site configuration
+    - name: Remove Nginx default site
       file:
-        src: /etc/nginx/sites-available/real_estate_frontend
-        dest: /etc/nginx/sites-enabled/real_estate_frontend
-        state: link
-        force: yes
-
-    - name: Remove default Nginx site
-      file:
-        path: /etc/nginx/sites-enabled/default
+        path: /var/www/html
         state: absent
-        force: yes
 
-    - name: Test Nginx configuration
-      command: nginx -t
-      register: nginx_test
-      ignore_errors: yes
+    - name: Copy frontend build to Nginx directory
+      copy:
+        src: "{{ frontend_build_dir }}/"
+        dest: /var/www/html/
+        owner: www-data
+        group: www-data
+        mode: '0755'
+      notify: Restart Nginx
 
-    - name: Show Nginx test output
-      debug:
-        var: nginx_test.stdout_lines
-
-    - name: Restart Nginx service
+    - name: Restart Nginx
       service:
         name: nginx
         state: restarted
+      listen: Restart Nginx
+
+    - name: Build backend Docker image
+      community.docker.docker_image:
+        name: "{{ backend_image }}"
+        build:
+          path: "{{ backend_dir }}"
+        source: build
+
+    - name: Run backend container
+      community.docker.docker_container:
+        name: "{{ backend_image }}"
+        image: "{{ backend_image }}"
+        state: started
+        restart_policy: always
+        ports:
+          - "8080:8080"
+        env:
+          SPRING_PROFILES_ACTIVE: "prod"
+
+    - name: Verify backend container is running
+      shell: docker ps | grep {{ backend_image }}
+      register: backend_status
+      changed_when: false
+
+    - debug:
+        msg: "✅ Backend deployed successfully and running on port 8080"
+
+    - name: Verify Nginx frontend is accessible
+      uri:
+        url: http://localhost
+        return_content: yes
+      register: frontend_response
+      failed_when: "'Welcome to nginx!' in frontend_response.content"
+
+    - debug:
+        msg: "✅ Frontend deployed successfully and served by Nginx"
