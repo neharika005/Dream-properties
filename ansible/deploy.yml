@@ -19,17 +19,27 @@
         state: present
         update_cache: yes
 
-    - name: Stop and remove existing containers
+    - name: Stop and remove existing containers (if running)
       shell: |
-        docker stop {{ backend_image }} {{ frontend_image }} 2>/dev/null || true
-        docker rm {{ backend_image }} {{ frontend_image }} 2>/dev/null || true
+        docker stop {{ backend_image }} 2>/dev/null || true
+        docker rm {{ backend_image }} 2>/dev/null || true
+      ignore_errors: yes
 
-    - name: Remove Nginx default site
+    - name: Clean and recreate Nginx web root
       file:
         path: /var/www/html
         state: absent
+      ignore_errors: yes
 
-    - name: Copy frontend build to Nginx directory
+    - name: Create Nginx web root directory
+      file:
+        path: /var/www/html
+        state: directory
+        owner: www-data
+        group: www-data
+        mode: '0755'
+
+    - name: Copy Angular build to Nginx directory
       copy:
         src: "{{ frontend_build_dir }}/"
         dest: /var/www/html/
@@ -38,11 +48,32 @@
         mode: '0755'
       notify: Restart Nginx
 
-    - name: Restart Nginx
-      service:
-        name: nginx
-        state: restarted
-      listen: Restart Nginx
+    - name: Configure Nginx for Angular SPA
+      copy:
+        dest: /etc/nginx/sites-available/default
+        content: |
+          server {
+              listen 80 default_server;
+              listen [::]:80 default_server;
+
+              root /var/www/html;
+              index index.html index.htm;
+
+              server_name _;
+
+              location / {
+                  try_files $uri $uri/ /index.html;
+              }
+
+              location /api/ {
+                  proxy_pass http://localhost:8080/;
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $scheme;
+              }
+          }
+      notify: Restart Nginx
 
     - name: Build backend Docker image
       community.docker.docker_image:
@@ -70,7 +101,7 @@
     - debug:
         msg: "✅ Backend deployed successfully and running on port 8080"
 
-    - name: Verify Nginx frontend is accessible
+    - name: Verify frontend (Angular + Nginx) is accessible
       uri:
         url: http://localhost
         return_content: yes
@@ -79,3 +110,9 @@
 
     - debug:
         msg: "✅ Frontend deployed successfully and served by Nginx"
+
+  handlers:
+    - name: Restart Nginx
+      service:
+        name: nginx
+        state: restarted
