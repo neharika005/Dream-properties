@@ -14,6 +14,10 @@
     mysql_user: root
     mysql_password: root
     network_name: real_estate_net
+    dockerhub_username: "your_dockerhub_username"
+    dockerhub_password: "your_dockerhub_token"
+    backend_image: "{{ dockerhub_username }}/real_estate_backend:latest"
+    frontend_image: "{{ dockerhub_username }}/real_estate_frontend:latest"
 
   tasks:
     # ------------------------------------------------------------
@@ -37,7 +41,15 @@
         - nginx
 
     # ------------------------------------------------------------
-    # 2. Create Docker network (shared by all containers)
+    # 2. Docker Login
+    # ------------------------------------------------------------
+    - name: Log in to Docker Hub
+      community.docker.docker_login:
+        username: "{{ dockerhub_username }}"
+        password: "{{ dockerhub_password }}"
+
+    # ------------------------------------------------------------
+    # 3. Create Docker network
     # ------------------------------------------------------------
     - name: Create dedicated Docker network
       community.docker.docker_network:
@@ -45,7 +57,7 @@
         state: present
 
     # ------------------------------------------------------------
-    # 3. MySQL Container
+    # 4. MySQL Container
     # ------------------------------------------------------------
     - name: Run MySQL container
       community.docker.docker_container:
@@ -63,7 +75,7 @@
           - mysql_data:/var/lib/mysql
 
     # ------------------------------------------------------------
-    # 4. Wait for MySQL to be ready
+    # 5. Wait for MySQL to be ready
     # ------------------------------------------------------------
     - name: Wait for MySQL to initialize
       shell: |
@@ -75,7 +87,7 @@
         executable: /bin/bash
 
     # ------------------------------------------------------------
-    # 5. Load schema and data into MySQL
+    # 6. Import schema and data
     # ------------------------------------------------------------
     - name: Import schema.sql into MySQL
       shell: >
@@ -92,20 +104,29 @@
         executable: /bin/bash
 
     # ------------------------------------------------------------
-    # 6. Backend Container
+    # 7. Build and Push Backend Image
     # ------------------------------------------------------------
-    - name: Build and run backend container
+    - name: Build backend Docker image
+      shell: |
+        cd "{{ backend_dir }}"
+        docker build -t {{ backend_image }} .
+      args:
+        executable: /bin/bash
+
+    - name: Push backend image to Docker Hub
+      shell: |
+        docker push {{ backend_image }}
+      args:
+        executable: /bin/bash
+
+    # ------------------------------------------------------------
+    # 8. Run backend container
+    # ------------------------------------------------------------
+    - name: Run backend container
       community.docker.docker_container:
         name: "{{ backend_container }}"
-        image: openjdk:17-jdk
+        image: "{{ backend_image }}"
         restart_policy: always
-        working_dir: /app
-        volumes:
-          - "{{ backend_dir }}:/app"
-        command: >
-          bash -c "chmod +x ./mvnw &&
-          ./mvnw clean package -DskipTests &&
-          java -jar target/*.jar"
         ports:
           - "8080:8080"
         networks:
@@ -114,22 +135,36 @@
           - "{{ mysql_container }}"
 
     # ------------------------------------------------------------
-    # 7. Frontend (Nginx) Container
+    # 9. Build and Push Frontend Image
+    # ------------------------------------------------------------
+    - name: Build frontend Docker image
+      shell: |
+        cd "{{ frontend_dir }}"
+        docker build -t {{ frontend_image }} .
+      args:
+        executable: /bin/bash
+
+    - name: Push frontend image to Docker Hub
+      shell: |
+        docker push {{ frontend_image }}
+      args:
+        executable: /bin/bash
+
+    # ------------------------------------------------------------
+    # 10. Run frontend container
     # ------------------------------------------------------------
     - name: Run frontend container
       community.docker.docker_container:
         name: "{{ frontend_container }}"
-        image: nginx:alpine
+        image: "{{ frontend_image }}"
         restart_policy: always
-        volumes:
-          - "{{ frontend_dir }}/dist/real-estate-frontend/browser:/usr/share/nginx/html"
         ports:
           - "4200:80"
         networks:
           - name: "{{ network_name }}"
 
     # ------------------------------------------------------------
-    # 8. Configure Nginx Reverse Proxy on Host
+    # 11. Configure Nginx Reverse Proxy
     # ------------------------------------------------------------
     - name: Configure Nginx for Real Estate app
       copy:
@@ -160,6 +195,3 @@
         nginx -t && systemctl reload nginx
       args:
         executable: /bin/bash
-
-volumes:
-  mysql_data:
