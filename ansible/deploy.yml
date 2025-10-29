@@ -25,13 +25,10 @@
           - nginx
         state: present
 
-    # --- Install Java, Docker, Maven ---
-    - name: Install OpenJDK 17, Docker, and Maven
+    # --- Install Java 21 ---
+    - name: Install OpenJDK 21
       apt:
-        name:
-          - openjdk-17-jdk
-          - docker.io
-          - maven
+        name: openjdk-21-jdk
         state: present
         update_cache: yes
 
@@ -44,6 +41,41 @@
 
     - debug:
         var: java_version.stdout_lines
+
+    # --- Install Latest Maven (3.9.9) Manually ---
+    - name: Remove old Maven if exists
+      apt:
+        name: maven
+        state: absent
+        purge: yes
+
+    - name: Install latest Apache Maven 3.9.9
+      shell: |
+        wget -q https://downloads.apache.org/maven/maven-3/3.9.9/binaries/apache-maven-3.9.9-bin.tar.gz -O /tmp/maven.tar.gz
+        sudo tar xf /tmp/maven.tar.gz -C /opt
+        sudo ln -sfn /opt/apache-maven-3.9.9 /opt/maven
+        echo 'export M2_HOME=/opt/maven' | sudo tee /etc/profile.d/maven.sh
+        echo 'export PATH=$M2_HOME/bin:$PATH' | sudo tee -a /etc/profile.d/maven.sh
+        source /etc/profile.d/maven.sh
+      args:
+        executable: /bin/bash
+
+    - name: Verify Maven installation
+      shell: |
+        source /etc/profile.d/maven.sh
+        mvn -version
+      register: maven_version
+      changed_when: false
+
+    - debug:
+        var: maven_version.stdout_lines
+
+    # --- Install Docker ---
+    - name: Install Docker
+      apt:
+        name: docker.io
+        state: present
+        update_cache: yes
 
     - name: Ensure Docker service is running
       service:
@@ -81,15 +113,16 @@
         version: main
         force: yes
 
-    # --- Build Backend ---
+    # --- Build Backend (Spring Boot) ---
     - name: Build backend using Maven
       shell: |
+        source /etc/profile.d/maven.sh
         cd "{{ backend_dir }}"
         mvn clean package -DskipTests
       args:
         executable: /bin/bash
 
-    # --- Build Frontend ---
+    # --- Build Frontend (Angular) ---
     - name: Build Angular frontend
       shell: |
         cd "{{ frontend_dir }}"
