@@ -14,8 +14,8 @@
     mysql_user: root
     mysql_password: root
     network_name: real_estate_net
-    dockerhub_username: "your_dockerhub_username"
-    dockerhub_password: "your_dockerhub_token"
+    dockerhub_username: "neha544"
+    dockerhub_password: "dckr_pat_yv4vXl0VEK7-6Yypfv9yOL7k4kc"
     backend_image: "{{ dockerhub_username }}/real_estate_backend:latest"
     frontend_image: "{{ dockerhub_username }}/real_estate_frontend:latest"
 
@@ -87,19 +87,27 @@
         executable: /bin/bash
 
     # ------------------------------------------------------------
-    # 6. Import schema and data
+    # 6. Import schema and data into MySQL
     # ------------------------------------------------------------
+    - name: Copy schema.sql to container
+      copy:
+        src: "{{ backend_dir }}/src/main/resources/schema.sql"
+        dest: /tmp/schema.sql
+
+    - name: Copy data.sql to container
+      copy:
+        src: "{{ backend_dir }}/src/main/resources/data.sql"
+        dest: /tmp/data.sql
+
     - name: Import schema.sql into MySQL
-      shell: >
-        docker exec -i {{ mysql_container }} mysql -u{{ mysql_user }} -p{{ mysql_password }}
-        {{ mysql_db }} < "{{ backend_dir }}/src/main/resources/schema.sql"
+      shell: |
+        docker exec -i {{ mysql_container }} mysql -u{{ mysql_user }} -p{{ mysql_password }} {{ mysql_db }} < /tmp/schema.sql
       args:
         executable: /bin/bash
 
     - name: Import data.sql into MySQL
-      shell: >
-        docker exec -i {{ mysql_container }} mysql -u{{ mysql_user }} -p{{ mysql_password }}
-        {{ mysql_db }} < "{{ backend_dir }}/src/main/resources/data.sql"
+      shell: |
+        docker exec -i {{ mysql_container }} mysql -u{{ mysql_user }} -p{{ mysql_password }} {{ mysql_db }} < /tmp/data.sql
       args:
         executable: /bin/bash
 
@@ -114,8 +122,7 @@
         executable: /bin/bash
 
     - name: Push backend image to Docker Hub
-      shell: |
-        docker push {{ backend_image }}
+      shell: docker push {{ backend_image }}
       args:
         executable: /bin/bash
 
@@ -131,8 +138,10 @@
           - "8080:8080"
         networks:
           - name: "{{ network_name }}"
-        depends_on:
-          - "{{ mysql_container }}"
+        env:
+          SPRING_DATASOURCE_URL: "jdbc:mysql://{{ mysql_container }}:3306/{{ mysql_db }}?allowPublicKeyRetrieval=true&useSSL=false"
+          SPRING_DATASOURCE_USERNAME: "{{ mysql_user }}"
+          SPRING_DATASOURCE_PASSWORD: "{{ mysql_password }}"
 
     # ------------------------------------------------------------
     # 9. Build and Push Frontend Image
@@ -145,8 +154,7 @@
         executable: /bin/bash
 
     - name: Push frontend image to Docker Hub
-      shell: |
-        docker push {{ frontend_image }}
+      shell: docker push {{ frontend_image }}
       args:
         executable: /bin/bash
 
