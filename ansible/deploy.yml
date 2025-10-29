@@ -113,11 +113,9 @@
       args:
         executable: /bin/bash
 
-    # --- Dockerize Backend (no docker-compose) ---
+    # --- Dockerize Backend (without compose) ---
     - name: Stop old backend container if running
-      shell: |
-        docker stop real_estate_backend || true
-        docker rm real_estate_backend || true
+      shell: docker stop real_estate_backend || true && docker rm real_estate_backend || true
       args:
         executable: /bin/bash
 
@@ -170,7 +168,7 @@
         path: /etc/nginx/sites-enabled/default
         state: absent
 
-    - name: Validate Nginx configuration
+    - name: Test Nginx configuration
       command: nginx -t
 
     - name: Restart Nginx service
