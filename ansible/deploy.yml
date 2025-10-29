@@ -1,105 +1,145 @@
 ---
-- name: Deploy Real Estate Application
-  hosts: all
-  become: true
+- name: Deploy Real Estate Application (Backend + Frontend + MySQL + Nginx)
+  hosts: real_estate
+  become: yes
+
   vars:
-    backend_dir: "/home/ubuntu/Dream-properties/Real Estate Backend/real-estate"
-    backend_jar: "real-estate-0.0.1-SNAPSHOT.jar"
-    frontend_dir: "/home/ubuntu/Dream-properties/real-estate-frontend/dist/real-estate-frontend/browser"
-    nginx_conf: "/etc/nginx/sites-available/real_estate"
-    mysql_container: "real_estate_mysql"
-    backend_container: "real_estate_backend"
+    project_root: /home/ubuntu/Dream-properties
+    backend_dir: "{{ project_root }}/Real Estate Backend/real-estate"
+    frontend_dir: "{{ project_root }}/real-estate-frontend"
+    mysql_container: real_estate_mysql
+    backend_container: real_estate_backend
+    frontend_container: real_estate_frontend
+    mysql_db: real_estate_portal
+    mysql_user: root
+    mysql_password: root
+    network_name: real_estate_net
 
   tasks:
-
-    # --- Update system packages ---
-    - name: Update apt packages
-      apt:
-        update_cache: yes
-        upgrade: yes
-
-    # --- Install dependencies ---
-    - name: Install required packages
+    # ------------------------------------------------------------
+    # 1. Ensure Docker & Nginx Installed
+    # ------------------------------------------------------------
+    - name: Ensure Docker and Nginx are installed
       apt:
         name:
           - docker.io
-          - docker-compose
           - nginx
         state: present
+        update_cache: yes
 
-    - name: Ensure Docker service is running
+    - name: Ensure Docker and Nginx services are running
       service:
-        name: docker
+        name: "{{ item }}"
         state: started
         enabled: yes
+      loop:
+        - docker
+        - nginx
 
-    # --- Stop old containers if any ---
-    - name: Stop existing containers
-      shell: |
-        docker stop {{ backend_container }} {{ mysql_container }} || true
-        docker rm {{ backend_container }} {{ mysql_container }} || true
-      ignore_errors: yes
+    # ------------------------------------------------------------
+    # 2. Create Docker network (shared by all containers)
+    # ------------------------------------------------------------
+    - name: Create dedicated Docker network
+      community.docker.docker_network:
+        name: "{{ network_name }}"
+        state: present
 
-    # --- Copy backend JAR to server ---
-    - name: Copy backend JAR to server
-      copy:
-        src: "{{ backend_dir }}/target/{{ backend_jar }}"
-        dest: "/home/ubuntu/{{ backend_jar }}"
-        remote_src: yes
-
-    # --- Start MySQL container ---
-    - name: Start MySQL container
-      docker_container:
+    # ------------------------------------------------------------
+    # 3. MySQL Container
+    # ------------------------------------------------------------
+    - name: Run MySQL container
+      community.docker.docker_container:
         name: "{{ mysql_container }}"
         image: mysql:8
         restart_policy: always
         env:
-          MYSQL_ROOT_PASSWORD: root
-          MYSQL_DATABASE: realestate
-          MYSQL_USER: user
-          MYSQL_PASSWORD: password
+          MYSQL_ROOT_PASSWORD: "{{ mysql_password }}"
+          MYSQL_DATABASE: "{{ mysql_db }}"
         ports:
           - "3306:3306"
+        networks:
+          - name: "{{ network_name }}"
+        volumes:
+          - mysql_data:/var/lib/mysql
 
-    # --- Wait for MySQL to initialize ---
-    - name: Wait for MySQL to be ready
+    # ------------------------------------------------------------
+    # 4. Wait for MySQL to be ready
+    # ------------------------------------------------------------
+    - name: Wait for MySQL to initialize
       shell: |
-        until docker exec {{ mysql_container }} mysqladmin ping -h "localhost" --silent; do
-          echo "Waiting for MySQL..."
+        until docker exec {{ mysql_container }} mysqladmin ping -u{{ mysql_user }} -p{{ mysql_password }} --silent; do
+          echo "Waiting for MySQL to start..."
           sleep 5
         done
-      retries: 10
-      delay: 5
-      register: mysql_ready
-      changed_when: false
+      args:
+        executable: /bin/bash
 
-    # --- Start Backend container ---
-    - name: Start backend container
-      docker_container:
+    # ------------------------------------------------------------
+    # 5. Load schema and data into MySQL
+    # ------------------------------------------------------------
+    - name: Import schema.sql into MySQL
+      shell: >
+        docker exec -i {{ mysql_container }} mysql -u{{ mysql_user }} -p{{ mysql_password }}
+        {{ mysql_db }} < "{{ backend_dir }}/src/main/resources/schema.sql"
+      args:
+        executable: /bin/bash
+
+    - name: Import data.sql into MySQL
+      shell: >
+        docker exec -i {{ mysql_container }} mysql -u{{ mysql_user }} -p{{ mysql_password }}
+        {{ mysql_db }} < "{{ backend_dir }}/src/main/resources/data.sql"
+      args:
+        executable: /bin/bash
+
+    # ------------------------------------------------------------
+    # 6. Backend Container
+    # ------------------------------------------------------------
+    - name: Build and run backend container
+      community.docker.docker_container:
         name: "{{ backend_container }}"
         image: openjdk:17-jdk
         restart_policy: always
-        command: ["java", "-jar", "/app/{{ backend_jar }}"]
+        working_dir: /app
         volumes:
-          - "/home/ubuntu/{{ backend_jar }}:/app/{{ backend_jar }}"
+          - "{{ backend_dir }}:/app"
+        command: >
+          bash -c "chmod +x ./mvnw &&
+          ./mvnw clean package -DskipTests &&
+          java -jar target/*.jar"
         ports:
           - "8080:8080"
-        env:
-          SPRING_DATASOURCE_URL: "jdbc:mysql://{{ mysql_container }}:3306/realestate"
-          SPRING_DATASOURCE_USERNAME: "user"
-          SPRING_DATASOURCE_PASSWORD: "password"
-        networks_cli_compatible: yes
+        networks:
+          - name: "{{ network_name }}"
+        depends_on:
+          - "{{ mysql_container }}"
 
-    # --- Configure Nginx for frontend ---
-    - name: Configure Nginx for frontend
+    # ------------------------------------------------------------
+    # 7. Frontend (Nginx) Container
+    # ------------------------------------------------------------
+    - name: Run frontend container
+      community.docker.docker_container:
+        name: "{{ frontend_container }}"
+        image: nginx:alpine
+        restart_policy: always
+        volumes:
+          - "{{ frontend_dir }}/dist/real-estate-frontend/browser:/usr/share/nginx/html"
+        ports:
+          - "4200:80"
+        networks:
+          - name: "{{ network_name }}"
+
+    # ------------------------------------------------------------
+    # 8. Configure Nginx Reverse Proxy on Host
+    # ------------------------------------------------------------
+    - name: Configure Nginx for Real Estate app
       copy:
-        dest: "{{ nginx_conf }}"
+        dest: /etc/nginx/sites-available/real_estate
         content: |
           server {
               listen 80;
               server_name _;
 
-              root {{ frontend_dir }};
+              root /home/ubuntu/Dream-properties/real-estate-frontend/dist/real-estate-frontend/browser;
               index index.html;
 
               location / {
@@ -113,49 +153,13 @@
                   proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
               }
           }
-      notify: Restart Nginx
 
-    - name: Enable frontend site
-      file:
-        src: "{{ nginx_conf }}"
-        dest: /etc/nginx/sites-enabled/real_estate
-        state: link
-      notify: Restart Nginx
+    - name: Enable Nginx site and reload
+      shell: |
+        ln -sf /etc/nginx/sites-available/real_estate /etc/nginx/sites-enabled/real_estate
+        nginx -t && systemctl reload nginx
+      args:
+        executable: /bin/bash
 
-    - name: Remove default Nginx config
-      file:
-        path: /etc/nginx/sites-enabled/default
-        state: absent
-      notify: Restart Nginx
-
-    # --- Verify backend container ---
-    - name: Verify backend container running
-      shell: docker ps | grep "{{ backend_container }}"
-      register: backend_status
-      failed_when: backend_status.rc != 0
-
-    - name: Print backend container status
-      debug:
-        msg: "✅ Backend container running:\n{{ backend_status.stdout }}"
-
-    # --- Verify frontend served by Nginx ---
-    - name: Verify frontend served by Nginx
-      uri:
-        url: http://localhost
-        return_content: yes
-      register: nginx_frontend
-      failed_when: "'Welcome to nginx!' in nginx_frontend.content"
-      retries: 5
-      delay: 5
-      until: nginx_frontend.status == 200
-
-    - name: Print success message
-      debug:
-        msg: "🎉 Deployment completed successfully! Frontend & Backend are live."
-
-  handlers:
-    - name: Restart Nginx
-      become: true
-      service:
-        name: nginx
-        state: restarted
+volumes:
+  mysql_data:
