@@ -7,7 +7,7 @@
     app_base: /home/ubuntu/Dream-properties
     backend_dir: "/home/ubuntu/Dream-properties/Real Estate Backend/real-estate"
     frontend_dir: /home/ubuntu/Dream-properties/real-estate-frontend
-    frontend_build_dir: /home/ubuntu/Dream-properties/real-estate-frontend/dist/real-estate-frontend/browser
+    frontend_build_path: /home/ubuntu/Dream-properties/real-estate-frontend/dist/real-estate-frontend/browser
 
   tasks:
     # --- System Setup ---
@@ -46,14 +46,6 @@
         name: maven
         state: present
 
-    - name: Verify Maven installation
-      shell: mvn -version
-      register: maven_check
-      changed_when: false
-
-    - debug:
-        msg: "{{ maven_check.stdout_lines }}"
-
     # --- Install Docker ---
     - name: Install Docker
       apt:
@@ -75,7 +67,7 @@
       args:
         executable: /bin/bash
 
-    # --- Verify Versions ---
+    # --- Display Installed Versions ---
     - name: Display installed versions
       shell: |
         echo "Java: $(java -version 2>&1 | head -n 1)"
@@ -89,7 +81,7 @@
     - debug:
         var: version_output.stdout_lines
 
-    # --- Clone GitHub Repository ---
+    # --- Clone Latest Code ---
     - name: Clone latest code from GitHub
       git:
         repo: "https://github.com/neharika005/Dream-properties.git"
@@ -97,7 +89,7 @@
         version: main
         force: yes
 
-    # --- Build Backend (Spring Boot) ---
+    # --- Build Backend ---
     - name: Build backend using Maven
       shell: |
         cd "{{ backend_dir }}"
@@ -105,7 +97,7 @@
       args:
         executable: /bin/bash
 
-    # --- Build Frontend (Angular) ---
+    # --- Build Frontend ---
     - name: Build Angular frontend
       shell: |
         cd "{{ frontend_dir }}"
@@ -114,11 +106,9 @@
       args:
         executable: /bin/bash
 
-    # --- Dockerize Backend (without compose) ---
+    # --- Dockerize Backend ---
     - name: Stop old backend container if running
-      shell: |
-        docker stop real_estate_backend 2>/dev/null || true
-        docker rm real_estate_backend 2>/dev/null || true
+      shell: docker stop real_estate_backend || true && docker rm real_estate_backend || true
       args:
         executable: /bin/bash
 
@@ -135,7 +125,15 @@
       args:
         executable: /bin/bash
 
-    # --- Nginx Reverse Proxy Setup ---
+    - name: Check backend container status
+      shell: docker ps | grep real_estate_backend
+      register: backend_status
+      changed_when: false
+
+    - debug:
+        msg: "✅ Backend container running:\n{{ backend_status.stdout }}"
+
+    # --- Configure Nginx ---
     - name: Create Nginx configuration for reverse proxy
       copy:
         dest: /etc/nginx/sites-available/real_estate.conf
@@ -143,9 +141,6 @@
           server {
               listen 80;
               server_name _;
-
-              root /home/ubuntu/Dream-properties/real-estate-frontend/dist/real-estate-frontend/browser;
-              index index.html;
 
               location /api/ {
                   proxy_pass http://localhost:8080/;
@@ -156,7 +151,9 @@
               }
 
               location / {
-                  try_files $uri $uri/ /index.html;
+                  root {{ frontend_build_path }};
+                  index index.html;
+                  try_files $uri /index.html;
               }
           }
 
@@ -181,21 +178,14 @@
         state: restarted
         enabled: yes
 
-    # --- Verify ---
-    - name: Check backend container status
-      shell: docker ps | grep real_estate_backend
-      register: backend_status
-      changed_when: false
-
-    - debug:
-        msg: "✅ Backend container running:\n{{ backend_status.stdout }}"
-
+    # --- Verify Frontend Served ---
     - name: Verify frontend served by Nginx
       uri:
         url: http://localhost
         return_content: yes
       register: frontend_check
-      failed_when: "'Welcome to nginx!' in frontend_check.content"
+      failed_when: "'index.html' not in frontend_check.content"
+      changed_when: false
 
     - debug:
-        msg: "✅ Frontend deployed successfully and served by Nginx"
+        msg: "✅ Frontend served successfully by Nginx."
