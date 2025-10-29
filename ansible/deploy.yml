@@ -113,9 +113,11 @@
       args:
         executable: /bin/bash
 
-    # --- Dockerize Backend (without compose) ---
+    # --- Dockerize Backend (no docker-compose) ---
     - name: Stop old backend container if running
-      shell: docker stop real_estate_backend || true && docker rm real_estate_backend || true
+      shell: |
+        docker stop real_estate_backend || true
+        docker rm real_estate_backend || true
       args:
         executable: /bin/bash
 
@@ -150,7 +152,7 @@
               }
 
               location / {
-                  root {{ frontend_dir }}/dist;
+                  root /home/ubuntu/Dream-properties/real-estate-frontend/dist/real-estate-frontend/browser;
                   index index.html;
                   try_files $uri /index.html;
               }
@@ -167,6 +169,9 @@
       file:
         path: /etc/nginx/sites-enabled/default
         state: absent
+
+    - name: Validate Nginx configuration
+      command: nginx -t
 
     - name: Restart Nginx service
       service:
