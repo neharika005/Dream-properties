@@ -119,8 +119,8 @@
     - name: Stop and rebuild Docker containers
       shell: |
         cd "{{ app_base }}"
-        docker compose down || true
-        docker compose up -d --build
+        docker-compose down || true
+        docker-compose up -d --build
       args:
         executable: /bin/bash
 
