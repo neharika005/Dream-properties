@@ -55,16 +55,16 @@
         wget -q https://downloads.apache.org/maven/maven-3/3.9.9/binaries/apache-maven-3.9.9-bin.tar.gz -O /tmp/maven.tar.gz
         tar xf /tmp/maven.tar.gz -C /opt
         ln -sfn /opt/apache-maven-3.9.9 /opt/maven
-        echo 'export M2_HOME=/opt/maven' | tee /etc/profile.d/maven.sh
-        echo 'export PATH=$M2_HOME/bin:$PATH' | tee -a /etc/profile.d/maven.sh
+        echo 'export M2_HOME=/opt/maven' > /etc/profile.d/maven.sh
+        echo 'export PATH=$M2_HOME/bin:$PATH' >> /etc/profile.d/maven.sh
         chmod +x /etc/profile.d/maven.sh
-        ln -sf /opt/maven/bin/mvn /usr/bin/mvn
+        ln -sf /opt/maven/bin/mvn /usr/local/bin/mvn
       args:
         executable: /bin/bash
 
     - name: Verify Maven installation
       shell: |
-        mvn -version
+        /usr/local/bin/mvn -version
       register: maven_version
       changed_when: false
 
@@ -92,12 +92,12 @@
       args:
         executable: /bin/bash
 
-    # --- Verify versions ---
+    # --- Verify Versions ---
     - name: Display installed versions
       shell: |
         echo "Java version: $(java -version 2>&1 | head -n 1)"
         echo "Docker version: $(docker --version)"
-        echo "Maven version: $(mvn -version | head -n 1)"
+        echo "Maven version: $(/usr/local/bin/mvn -version | head -n 1)"
         echo "Node version: $(node -v)"
         echo "NPM version: $(npm -v)"
       register: version_output
@@ -118,7 +118,7 @@
     - name: Build backend using Maven
       shell: |
         cd "{{ backend_dir }}"
-        mvn clean package -DskipTests
+        /usr/local/bin/mvn clean package -DskipTests
       args:
         executable: /bin/bash
 
