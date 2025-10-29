@@ -1,69 +1,151 @@
 ---
-- name: Deploy Real Estate Application
-  hosts: real_estate
+- name: Deploy Real Estate Application on AWS EC2
+  hosts: all
   become: yes
 
   vars:
+    app_base: /home/ubuntu/Dream-properties
     backend_dir: "/home/ubuntu/Dream-properties/Real Estate Backend/real-estate"
-    frontend_build_dir: "/home/ubuntu/Dream-properties/real-estate-frontend/dist/real-estate-frontend/browser"
-    backend_jar: "real-estate-0.0.1-SNAPSHOT.jar"
-    backend_image: "real_estate_backend"
-    frontend_image: "real_estate_frontend"
+    frontend_dir: /home/ubuntu/Dream-properties/real-estate-frontend
+    frontend_build_dir: /home/ubuntu/Dream-properties/real-estate-frontend/dist/real-estate-frontend/browser
 
   tasks:
-    - name: Ensure Docker and Nginx are installed
+    # --- System Setup ---
+    - name: Update apt cache and install base packages
       apt:
+        update_cache: yes
         name:
-          - docker.io
+          - git
+          - curl
+          - ca-certificates
+          - gnupg
+          - lsb-release
+          - unzip
+          - software-properties-common
+          - apt-transport-https
           - nginx
+        state: present
+
+    # --- Install Java 21 ---
+    - name: Install OpenJDK 21
+      apt:
+        name: openjdk-21-jdk
+        state: present
+
+    - name: Verify Java installation
+      shell: java -version
+      register: java_version
+      changed_when: false
+
+    - debug:
+        var: java_version.stdout_lines
+
+    # --- Install Maven ---
+    - name: Ensure Maven is installed
+      apt:
+        name: maven
+        state: present
+
+    - name: Verify Maven installation
+      shell: mvn -version
+      register: maven_check
+      changed_when: false
+
+    - debug:
+        msg: "{{ maven_check.stdout_lines }}"
+
+    # --- Install Docker ---
+    - name: Install Docker
+      apt:
+        name: docker.io
         state: present
         update_cache: yes
 
-    - name: Stop and remove existing containers (if running)
+    - name: Ensure Docker service is running
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    # --- Install Node.js 18.x ---
+    - name: Install Node.js 18.x
       shell: |
-        docker stop {{ backend_image }} 2>/dev/null || true
-        docker rm {{ backend_image }} 2>/dev/null || true
-      ignore_errors: yes
+        curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
+        apt-get install -y nodejs
+      args:
+        executable: /bin/bash
 
-    - name: Clean and recreate Nginx web root
-      file:
-        path: /var/www/html
-        state: absent
-      ignore_errors: yes
+    # --- Verify Versions ---
+    - name: Display installed versions
+      shell: |
+        echo "Java: $(java -version 2>&1 | head -n 1)"
+        echo "Docker: $(docker --version)"
+        echo "Maven: $(mvn -version | head -n 1)"
+        echo "Node: $(node -v)"
+        echo "NPM: $(npm -v)"
+      register: version_output
+      changed_when: false
 
-    - name: Create Nginx web root directory
-      file:
-        path: /var/www/html
-        state: directory
-        owner: www-data
-        group: www-data
-        mode: '0755'
+    - debug:
+        var: version_output.stdout_lines
 
-    - name: Copy Angular build to Nginx directory
+    # --- Clone GitHub Repository ---
+    - name: Clone latest code from GitHub
+      git:
+        repo: "https://github.com/neharika005/Dream-properties.git"
+        dest: "{{ app_base }}"
+        version: main
+        force: yes
+
+    # --- Build Backend (Spring Boot) ---
+    - name: Build backend using Maven
+      shell: |
+        cd "{{ backend_dir }}"
+        mvn clean package -DskipTests
+      args:
+        executable: /bin/bash
+
+    # --- Build Frontend (Angular) ---
+    - name: Build Angular frontend
+      shell: |
+        cd "{{ frontend_dir }}"
+        npm install
+        npm run build -- --configuration production
+      args:
+        executable: /bin/bash
+
+    # --- Dockerize Backend (without compose) ---
+    - name: Stop old backend container if running
+      shell: |
+        docker stop real_estate_backend 2>/dev/null || true
+        docker rm real_estate_backend 2>/dev/null || true
+      args:
+        executable: /bin/bash
+
+    - name: Build backend Docker image
+      shell: |
+        cd "{{ backend_dir }}"
+        docker build -t real_estate_backend .
+      args:
+        executable: /bin/bash
+
+    - name: Run backend container
+      shell: |
+        docker run -d --name real_estate_backend -p 8080:8080 real_estate_backend
+      args:
+        executable: /bin/bash
+
+    # --- Nginx Reverse Proxy Setup ---
+    - name: Create Nginx configuration for reverse proxy
       copy:
-        src: "{{ frontend_build_dir }}/"
-        dest: /var/www/html/
-        owner: www-data
-        group: www-data
-        mode: '0755'
-      notify: Restart Nginx
-
-    - name: Configure Nginx for Angular SPA
-      copy:
-        dest: /etc/nginx/sites-available/default
+        dest: /etc/nginx/sites-available/real_estate.conf
         content: |
           server {
-              listen 80 default_server;
-              listen [::]:80 default_server;
-
-              root /var/www/html;
-              index index.html index.htm;
-
+              listen 80;
               server_name _;
 
-              location / {
-                  try_files $uri $uri/ /index.html;
-              }
+              root /home/ubuntu/Dream-properties/real-estate-frontend/dist/real-estate-frontend/browser;
+              index index.html;
 
               location /api/ {
                   proxy_pass http://localhost:8080/;
@@ -72,47 +154,48 @@
                   proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
                   proxy_set_header X-Forwarded-Proto $scheme;
               }
+
+              location / {
+                  try_files $uri $uri/ /index.html;
+              }
           }
-      notify: Restart Nginx
 
-    - name: Build backend Docker image
-      community.docker.docker_image:
-        name: "{{ backend_image }}"
-        build:
-          path: "{{ backend_dir }}"
-        source: build
+    - name: Enable custom Nginx site
+      file:
+        src: /etc/nginx/sites-available/real_estate.conf
+        dest: /etc/nginx/sites-enabled/real_estate.conf
+        state: link
+        force: yes
 
-    - name: Run backend container
-      community.docker.docker_container:
-        name: "{{ backend_image }}"
-        image: "{{ backend_image }}"
-        state: started
-        restart_policy: always
-        ports:
-          - "8080:8080"
-        env:
-          SPRING_PROFILES_ACTIVE: "prod"
+    - name: Remove default Nginx site
+      file:
+        path: /etc/nginx/sites-enabled/default
+        state: absent
 
-    - name: Verify backend container is running
-      shell: docker ps | grep {{ backend_image }}
+    - name: Test Nginx configuration
+      command: nginx -t
+
+    - name: Restart Nginx service
+      service:
+        name: nginx
+        state: restarted
+        enabled: yes
+
+    # --- Verify ---
+    - name: Check backend container status
+      shell: docker ps | grep real_estate_backend
       register: backend_status
       changed_when: false
 
     - debug:
-        msg: "✅ Backend deployed successfully and running on port 8080"
+        msg: "✅ Backend container running:\n{{ backend_status.stdout }}"
 
-    - name: Verify frontend (Angular + Nginx) is accessible
+    - name: Verify frontend served by Nginx
       uri:
         url: http://localhost
         return_content: yes
-      register: frontend_response
-      failed_when: "'Welcome to nginx!' in frontend_response.content"
+      register: frontend_check
+      failed_when: "'Welcome to nginx!' in frontend_check.content"
 
     - debug:
         msg: "✅ Frontend deployed successfully and served by Nginx"
-
-  handlers:
-    - name: Restart Nginx
-      service:
-        name: nginx
-        state: restarted
