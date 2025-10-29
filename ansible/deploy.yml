@@ -32,15 +32,14 @@
         state: present
 
     - name: Verify Java installation
-      shell: |
-        java -version
+      shell: java -version
       register: java_version
       changed_when: false
 
     - debug:
         var: java_version.stdout_lines
 
-    # --- Install Maven (system-managed) ---
+    # --- Install Maven ---
     - name: Ensure Maven is installed
       apt:
         name: maven
@@ -51,8 +50,7 @@
       register: maven_check
       changed_when: false
 
-    - name: Show Maven version
-      debug:
+    - debug:
         msg: "{{ maven_check.stdout_lines }}"
 
     # --- Install Docker ---
@@ -79,11 +77,11 @@
     # --- Verify Versions ---
     - name: Display installed versions
       shell: |
-        echo "Java version: $(java -version 2>&1 | head -n 1)"
-        echo "Docker version: $(docker --version)"
-        echo "Maven version: $(mvn -version | head -n 1)"
-        echo "Node version: $(node -v)"
-        echo "NPM version: $(npm -v)"
+        echo "Java: $(java -version 2>&1 | head -n 1)"
+        echo "Docker: $(docker --version)"
+        echo "Maven: $(mvn -version | head -n 1)"
+        echo "Node: $(node -v)"
+        echo "NPM: $(npm -v)"
       register: version_output
       changed_when: false
 
@@ -115,22 +113,24 @@
       args:
         executable: /bin/bash
 
-    # --- Docker Compose Deployment ---
-    - name: Stop and rebuild Docker containers
-      shell: |
-        cd "{{ app_base }}"
-        docker-compose down || true
-        docker-compose up -d --build
+    # --- Dockerize Backend (without compose) ---
+    - name: Stop old backend container if running
+      shell: docker stop real_estate_backend || true && docker rm real_estate_backend || true
       args:
         executable: /bin/bash
 
-    - name: Verify running Docker containers
-      shell: docker ps
-      register: docker_ps
-      changed_when: false
+    - name: Build backend Docker image
+      shell: |
+        cd "{{ backend_dir }}"
+        docker build -t real_estate_backend .
+      args:
+        executable: /bin/bash
 
-    - debug:
-        var: docker_ps.stdout_lines
+    - name: Run backend container
+      shell: |
+        docker run -d --name real_estate_backend -p 8080:8080 real_estate_backend
+      args:
+        executable: /bin/bash
 
     # --- Nginx Reverse Proxy Setup ---
     - name: Create Nginx configuration for reverse proxy
@@ -167,9 +167,6 @@
       file:
         path: /etc/nginx/sites-enabled/default
         state: absent
-
-    - name: Reload Nginx daemon
-      command: systemctl daemon-reload
 
     - name: Restart Nginx service
       service:
