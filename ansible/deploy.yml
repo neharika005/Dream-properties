@@ -7,6 +7,11 @@
     app_base: /home/ubuntu/Dream-properties
     backend_dir: "/home/ubuntu/Dream-properties/Real Estate Backend/real-estate"
     frontend_dir: /home/ubuntu/Dream-properties/real-estate-frontend
+    maven_home: /opt/maven
+
+  environment:
+    M2_HOME: /opt/maven
+    PATH: "/opt/maven/bin:{{ ansible_env.PATH }}"
 
   tasks:
     # --- System Setup ---
@@ -42,28 +47,23 @@
     - debug:
         var: java_version.stdout_lines
 
-    # --- Install Latest Maven (3.9.9) Manually ---
+    # --- Install Maven (3.9.9) ---
     - name: Remove old Maven if exists
       apt:
         name: maven
         state: absent
         purge: yes
 
-    - name: Install latest Apache Maven 3.9.9
+    - name: Install Apache Maven 3.9.9
       shell: |
         wget -q https://downloads.apache.org/maven/maven-3/3.9.9/binaries/apache-maven-3.9.9-bin.tar.gz -O /tmp/maven.tar.gz
-        sudo tar xf /tmp/maven.tar.gz -C /opt
-        sudo ln -sfn /opt/apache-maven-3.9.9 /opt/maven
-        echo 'export M2_HOME=/opt/maven' | sudo tee /etc/profile.d/maven.sh
-        echo 'export PATH=$M2_HOME/bin:$PATH' | sudo tee -a /etc/profile.d/maven.sh
-        source /etc/profile.d/maven.sh
+        tar xf /tmp/maven.tar.gz -C /opt
+        ln -sfn /opt/apache-maven-3.9.9 {{ maven_home }}
       args:
         executable: /bin/bash
 
     - name: Verify Maven installation
-      shell: |
-        source /etc/profile.d/maven.sh
-        mvn -version
+      shell: mvn -version
       register: maven_version
       changed_when: false
 
@@ -91,7 +91,7 @@
       args:
         executable: /bin/bash
 
-    # --- Verify Versions ---
+    # --- Verify all versions ---
     - name: Display installed versions
       shell: |
         echo "Java version: $(java -version 2>&1 | head -n 1)"
@@ -116,7 +116,6 @@
     # --- Build Backend (Spring Boot) ---
     - name: Build backend using Maven
       shell: |
-        source /etc/profile.d/maven.sh
         cd "{{ backend_dir }}"
         mvn clean package -DskipTests
       args:
