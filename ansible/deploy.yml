@@ -21,7 +21,7 @@
 
   tasks:
     # ------------------------------------------------------------
-    # 1. Ensure Docker & Nginx Installed
+    # 1. Install and start Docker & Nginx
     # ------------------------------------------------------------
     - name: Ensure Docker and Nginx are installed
       apt:
@@ -41,7 +41,7 @@
         - nginx
 
     # ------------------------------------------------------------
-    # 2. Docker Login
+    # 2. Docker Hub Login
     # ------------------------------------------------------------
     - name: Log in to Docker Hub
       community.docker.docker_login:
@@ -57,7 +57,7 @@
         state: present
 
     # ------------------------------------------------------------
-    # 4. MySQL Container
+    # 4. MySQL Container Setup
     # ------------------------------------------------------------
     - name: Run MySQL container
       community.docker.docker_container:
@@ -87,17 +87,19 @@
         executable: /bin/bash
 
     # ------------------------------------------------------------
-    # 6. Import schema and data into MySQL
+    # 6. Copy & Import schema/data into MySQL
     # ------------------------------------------------------------
-    - name: Copy schema.sql to container
-      copy:
-        src: "{{ backend_dir }}/src/main/resources/schema.sql"
-        dest: /tmp/schema.sql
+    - name: Copy schema.sql to MySQL container
+      shell: |
+        docker cp "{{ backend_dir }}/src/main/resources/schema.sql" {{ mysql_container }}:/tmp/schema.sql
+      args:
+        executable: /bin/bash
 
-    - name: Copy data.sql to container
-      copy:
-        src: "{{ backend_dir }}/src/main/resources/data.sql"
-        dest: /tmp/data.sql
+    - name: Copy data.sql to MySQL container
+      shell: |
+        docker cp "{{ backend_dir }}/src/main/resources/data.sql" {{ mysql_container }}:/tmp/data.sql
+      args:
+        executable: /bin/bash
 
     - name: Import schema.sql into MySQL
       shell: |
