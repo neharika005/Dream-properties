@@ -87,7 +87,7 @@
         executable: /bin/bash
 
     # ------------------------------------------------------------
-    # 6. Copy & Import schema/data into MySQL
+    # 6. Copy & Import schema/data into MySQL (Fixed)
     # ------------------------------------------------------------
     - name: Copy schema.sql to MySQL container
       shell: |
@@ -103,13 +103,13 @@
 
     - name: Import schema.sql into MySQL
       shell: |
-        docker exec -i {{ mysql_container }} mysql -u{{ mysql_user }} -p{{ mysql_password }} {{ mysql_db }} < /tmp/schema.sql
+        docker exec -i {{ mysql_container }} sh -c "mysql -u{{ mysql_user }} -p{{ mysql_password }} {{ mysql_db }} < /tmp/schema.sql"
       args:
         executable: /bin/bash
 
     - name: Import data.sql into MySQL
       shell: |
-        docker exec -i {{ mysql_container }} mysql -u{{ mysql_user }} -p{{ mysql_password }} {{ mysql_db }} < /tmp/data.sql
+        docker exec -i {{ mysql_container }} sh -c "mysql -u{{ mysql_user }} -p{{ mysql_password }} {{ mysql_db }} < /tmp/data.sql"
       args:
         executable: /bin/bash
 
