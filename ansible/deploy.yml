@@ -18,7 +18,7 @@
         update_cache: yes
         upgrade: yes
 
-    # --- Install required dependencies ---
+    # --- Install dependencies ---
     - name: Install required packages
       apt:
         name:
@@ -61,6 +61,18 @@
         ports:
           - "3306:3306"
 
+    # --- Wait for MySQL to initialize ---
+    - name: Wait for MySQL to be ready
+      shell: |
+        until docker exec {{ mysql_container }} mysqladmin ping -h "localhost" --silent; do
+          echo "Waiting for MySQL..."
+          sleep 5
+        done
+      retries: 10
+      delay: 5
+      register: mysql_ready
+      changed_when: false
+
     # --- Start Backend container ---
     - name: Start backend container
       docker_container:
@@ -72,8 +84,11 @@
           - "/home/ubuntu/{{ backend_jar }}:/app/{{ backend_jar }}"
         ports:
           - "8080:8080"
-        depends_on:
-          - "{{ mysql_container }}"
+        env:
+          SPRING_DATASOURCE_URL: "jdbc:mysql://{{ mysql_container }}:3306/realestate"
+          SPRING_DATASOURCE_USERNAME: "user"
+          SPRING_DATASOURCE_PASSWORD: "password"
+        networks_cli_compatible: yes
 
     # --- Configure Nginx for frontend ---
     - name: Configure Nginx for frontend
@@ -123,7 +138,7 @@
       debug:
         msg: "✅ Backend container running:\n{{ backend_status.stdout }}"
 
-    # --- Verify frontend is served by Nginx ---
+    # --- Verify frontend served by Nginx ---
     - name: Verify frontend served by Nginx
       uri:
         url: http://localhost
