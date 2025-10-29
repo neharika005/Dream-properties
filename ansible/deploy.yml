@@ -7,7 +7,6 @@
     app_base: /home/ubuntu/Dream-properties
     backend_dir: "/home/ubuntu/Dream-properties/Real Estate Backend/real-estate"
     frontend_dir: /home/ubuntu/Dream-properties/real-estate-frontend
-    maven_home: /opt/apache-maven-3.9.9
 
   tasks:
     # --- System Setup ---
@@ -31,45 +30,30 @@
       apt:
         name: openjdk-21-jdk
         state: present
-        update_cache: yes
 
     - name: Verify Java installation
       shell: |
         java -version
-        javac -version
       register: java_version
       changed_when: false
 
     - debug:
         var: java_version.stdout_lines
 
-    # --- Install Maven 3.9.9 ---
-    - name: Remove old Maven if exists
+    # --- Install Maven (system-managed) ---
+    - name: Ensure Maven is installed
       apt:
         name: maven
-        state: absent
-        purge: yes
-
-    - name: Install Apache Maven 3.9.9 manually
-      shell: |
-        wget -q https://downloads.apache.org/maven/maven-3/3.9.9/binaries/apache-maven-3.9.9-bin.tar.gz -O /tmp/maven.tar.gz
-        tar xf /tmp/maven.tar.gz -C /opt
-        ln -sfn /opt/apache-maven-3.9.9 /opt/maven
-        echo 'export M2_HOME=/opt/maven' > /etc/profile.d/maven.sh
-        echo 'export PATH=$M2_HOME/bin:$PATH' >> /etc/profile.d/maven.sh
-        chmod +x /etc/profile.d/maven.sh
-        ln -sf /opt/maven/bin/mvn /usr/local/bin/mvn
-      args:
-        executable: /bin/bash
+        state: present
 
     - name: Verify Maven installation
-      shell: |
-        /usr/local/bin/mvn -version
-      register: maven_version
+      shell: mvn -version
+      register: maven_check
       changed_when: false
 
-    - debug:
-        var: maven_version.stdout_lines
+    - name: Show Maven version
+      debug:
+        msg: "{{ maven_check.stdout_lines }}"
 
     # --- Install Docker ---
     - name: Install Docker
@@ -97,7 +81,7 @@
       shell: |
         echo "Java version: $(java -version 2>&1 | head -n 1)"
         echo "Docker version: $(docker --version)"
-        echo "Maven version: $(/usr/local/bin/mvn -version | head -n 1)"
+        echo "Maven version: $(mvn -version | head -n 1)"
         echo "Node version: $(node -v)"
         echo "NPM version: $(npm -v)"
       register: version_output
@@ -118,7 +102,7 @@
     - name: Build backend using Maven
       shell: |
         cd "{{ backend_dir }}"
-        /usr/local/bin/mvn clean package -DskipTests
+        mvn clean package -DskipTests
       args:
         executable: /bin/bash
 
