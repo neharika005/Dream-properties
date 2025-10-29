@@ -2,6 +2,8 @@ package com.example.real_estate.controller;
 
 import java.util.List;
 import java.util.Map;
+import jakarta.annotation.PostConstruct;
+
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
